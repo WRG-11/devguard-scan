@@ -1,0 +1,3 @@
+SYNTHETIC text-with-.png-extension — excluded by **/*.png. Contains a fake key
+ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCD that must NOT be reported (binary
+asset extensions are skipped by both engines).
