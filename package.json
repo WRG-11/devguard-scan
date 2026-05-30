@@ -1,0 +1,10 @@
+{
+  "name": "devguard-scan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "devguard-in-browser — 100% client-side secret-scan POC (zero deps, zero upload)",
+  "scripts": {
+    "parity": "node scripts/js_reference_dump.mjs"
+  }
+}
