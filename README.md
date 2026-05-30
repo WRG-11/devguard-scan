@@ -88,7 +88,7 @@ counts identical (6 ERROR + 3 WARNING); UI smoke PASS.
 
 ## Fixtures
 
-`fixtures/` contains **synthetic-only** content (Pattern 34) — every "secret" is
+`fixtures/` contains **synthetic-only** content — every "secret" is
 fake/non-functional and exists solely to exercise the 10 rules plus the
 include/exclude/no-false-positive paths. No real credential is committed.
 
