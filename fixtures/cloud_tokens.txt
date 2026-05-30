@@ -1,0 +1,9 @@
+# SYNTHETIC fixture (Pattern 34) — fake values only, no real credentials.
+# Each line triggers exactly ONE new R89-100b rule (all ERROR). No quotes, so
+# the generic_secret_assignment rule never co-fires; each is a clean 1:1 case.
+# (.txt, not .env: *.env is gitignored repo-wide for OPSEC; .txt is in
+#  DEFAULT_INCLUDE and committable, so it ships with the parity corpus.)
+GOOGLE_MAPS=AIzaSyB1234567890abcdefGHIJKLMNOPQRSTUV
+STRIPE_LIVE=sk_live_0123456789abcdefABCDEFij
+GH_FINEGRAIN=github_pat_01234567890123456789012345678901234567890123456789012345678901234567890123456789AB
+SLACK_HOOK=https://hooks.slack.com/services/T00000000/B11111111/abcdefABCDEF0123456789mnop
