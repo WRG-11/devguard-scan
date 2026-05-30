@@ -1,7 +1,7 @@
 // devguard-in-browser — secret-scan engine (JS port of wrg_devguard).
 //
 // PARITY SOURCE (READ-ONLY): WRG-11/wrg-devguard  src/wrg_devguard/
-//   secrets.py  SECRET_RULES (L9-46), DEFAULT_INCLUDE (L48-62), scan_secrets (L65-110)
+//   secrets.py  SECRET_RULES (L9-70), DEFAULT_INCLUDE (L72-86), scan_secrets (L89-134)
 //   common.py   match_any (L34-44), line_col (L53-57)
 //   policy.py   DEFAULT_EXCLUDE (L20-52)
 //
@@ -10,11 +10,12 @@
 // hand it { path, text } records; it returns Finding records. The secret VALUE
 // is never returned (snippet is always "[REDACTED]", matching secrets.py:107).
 
-// --- SECRET_RULES — verbatim port of secrets.py:9-46 -----------------------
-// Python compiles each with re.MULTILINE (secrets.py:74) → JS flag "m".
-// Rule 6 carries an inline (?i) flag in Python; JS has no inline flags, so the
-// "(?i)" is stripped from the source and expressed as the "i" RegExp flag.
-// None of the 6 patterns use ^/$ anchors, so "m" is a behavioural no-op here —
+// --- SECRET_RULES — verbatim port of secrets.py:9-70 -----------------------
+// Python compiles each with re.MULTILINE (secrets.py:98) → JS flag "m".
+// Rule 6 (generic_secret_assignment) carries an inline (?i) flag in Python; JS
+// has no inline flags, so the "(?i)" is stripped from the source and expressed
+// as the "i" RegExp flag.
+// None of the 10 patterns use ^/$ anchors, so "m" is a behavioural no-op here —
 // it is kept only to mirror the Python compile flags 1:1.
 export const SECRET_RULES = [
   {
@@ -59,6 +60,34 @@ export const SECRET_RULES = [
     flags: "gim",
     severity: "WARNING",
     message: "Potential hardcoded secret assignment.",
+  },
+  {
+    id: "google_api_key",
+    source: String.raw`\bAIza[0-9A-Za-z_\-]{35}\b`,
+    flags: "gm",
+    severity: "ERROR",
+    message: "Possible Google API key found.",
+  },
+  {
+    id: "stripe_secret_key",
+    source: String.raw`\b(?:sk|rk)_live_[0-9A-Za-z]{24,}\b`,
+    flags: "gm",
+    severity: "ERROR",
+    message: "Possible Stripe live secret key found.",
+  },
+  {
+    id: "github_fine_grained_pat",
+    source: String.raw`\bgithub_pat_[0-9A-Za-z_]{82}\b`,
+    flags: "gm",
+    severity: "ERROR",
+    message: "Possible GitHub fine-grained personal access token found.",
+  },
+  {
+    id: "slack_webhook_url",
+    source: String.raw`https://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]{24,}`,
+    flags: "gm",
+    severity: "ERROR",
+    message: "Possible Slack incoming-webhook URL found.",
   },
 ];
 
@@ -203,7 +232,7 @@ function byteLength(text) {
 }
 
 // Scan a single text blob. Rule-outer / match-inner loop mirrors
-// secrets.py:94-109 so the per-file finding order matches the Python tool.
+// secrets.py:118-133 so the per-file finding order matches the Python tool.
 export function scanText(text, file) {
   const findings = [];
   for (const rule of SECRET_RULES) {
@@ -220,7 +249,7 @@ export function scanText(text, file) {
         file,
         line,
         column,
-        snippet: "[REDACTED]", // secrets.py:107 — value never retained
+        snippet: "[REDACTED]", // secrets.py:131 — value never retained
       });
     }
   }
@@ -228,7 +257,7 @@ export function scanText(text, file) {
 }
 
 // Scan a list of { path, text } records, applying include/exclude exactly as
-// scan_secrets (secrets.py:81-93): skip oversize, skip excluded, require an
+// scan_secrets (secrets.py:105-117): skip oversize, skip excluded, require an
 // include match. File-outer order mirrors the Python rglob loop.
 export function scanFiles(files, opts = {}) {
   const include = opts.include || DEFAULT_INCLUDE;
