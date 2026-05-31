@@ -1,0 +1,65 @@
+name: Refresh README Metrics
+
+# Recompute source-of-truth counts from scan.js and update the
+# <!-- METRIC:name --> markers in README.md (Faz-1 self-stamp).
+# Public repo — GitHub Actions minutes are free.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scan.js'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute secret_rule_count
+        id: metrics
+        run: |
+          COUNT=$(grep -c "^    id:" scan.js)
+          echo "secret_rule_count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "secret_rule_count: $COUNT"
+
+      - name: Update README.md markers
+        env:
+          RULE_COUNT: ${{ steps.metrics.outputs.secret_rule_count }}
+        run: |
+          python3 - <<'PYEOF'
+          import re, os
+
+          count = int(os.environ['RULE_COUNT'])
+
+          with open('README.md', 'r', encoding='utf-8') as f:
+              original = f.read()
+
+          pattern = r'<!-- METRIC:secret_rule_count -->.*?<!-- /METRIC:secret_rule_count -->'
+          replacement = f'<!-- METRIC:secret_rule_count -->{count}<!-- /METRIC:secret_rule_count -->'
+          updated = re.sub(pattern, replacement, original, flags=re.DOTALL)
+
+          if updated != original:
+              with open('README.md', 'w', encoding='utf-8', newline='\n') as f:
+                  f.write(updated)
+              print(f'README.md updated: secret_rule_count={count}')
+          else:
+              print(f'README.md already up-to-date: secret_rule_count={count}')
+          PYEOF
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet README.md; then
+            echo "No changes to commit."
+          else
+            git add README.md
+            git commit -m "chore(readme): auto-refresh metric markers [skip ci]"
+            git push
+          fi

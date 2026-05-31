@@ -3,7 +3,7 @@
 A **100% client-side** secret scanner. Paste code or drop files; it flags leaked
 API keys, tokens, and private-key blocks **without a single byte leaving your
 browser**. It is a static, dependency-free port of the `wrg_devguard`
-`scan-secrets` engine — the same 10 rules, the same include/exclude logic, the
+`scan-secrets` engine — the same <!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules, the same include/exclude logic, the
 same line/column reporting.
 
 > **POC / demo.** A "try-it-now" capability demo of the engine, not a product.
@@ -33,7 +33,7 @@ py -3 -m http.server 8080
 Any static host (GitHub Pages, Netlify, S3) works the same way. After the page
 loads, you can disconnect from the network entirely — it keeps working.
 
-## What it detects (10 rules — ported verbatim)
+## What it detects (<!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules — ported verbatim)
 
 | rule_id                     | severity | source                  |
 |-----------------------------|----------|-------------------------|
