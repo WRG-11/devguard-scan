@@ -30,7 +30,8 @@ py -3 -m http.server 8080
 # then open http://localhost:8080/
 ```
 
-Any static host (GitHub Pages, Netlify, S3) works the same way. After the page
+Any static host (GitHub Pages, Netlify, S3) works the same way — a live
+instance runs at <https://wrg-11.github.io/devguard-scan/>. After the page
 loads, you can disconnect from the network entirely — it keeps working.
 
 ## What it detects (<!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules — ported verbatim)
@@ -112,5 +113,6 @@ network · Pyodide · publishing/hosting. Single page, single job: secret-scan.
 ## Phase 2 (not this POC)
 
 If it gets traction: a Pyodide-based pattern that runs `secrets.py` (and other
-zero-dep WRG tools) unmodified in-browser, plus a public GitHub Pages host.
-Parked until the try-it-now demo proves demand.
+zero-dep WRG tools) unmodified in-browser. The public GitHub Pages host is
+already live (<https://wrg-11.github.io/devguard-scan/>); the Pyodide pattern
+stays parked until the live demo proves demand.
