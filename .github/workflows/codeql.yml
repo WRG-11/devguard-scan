@@ -1,0 +1,51 @@
+name: CodeQL
+
+# CodeQL static security analysis for the client-side JavaScript.
+#
+# This repository is a dependency-free, zero-upload static site: the scan
+# engine (scan.js), the UI glue (app.js) and the parity/test harness under
+# scripts/ are all hand-written browser/Node JavaScript with no build step
+# and no node_modules. CodeQL therefore runs with build-mode `none`, which
+# analyzes the JS/TS source directly.
+#
+# Runs on every push / PR to the default branch plus a weekly scheduled
+# scan. Findings surface in the repo Security tab -> Code scanning alerts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'  # Monday 03:00 UTC
+
+permissions:
+  contents: read
+  security-events: write   # required to upload SARIF results
+
+jobs:
+  analyze:
+    name: Analyze (JavaScript/TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e  # v4.36.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e  # v4.36.2
+        with:
+          category: "/language:${{ matrix.language }}"
