@@ -6,7 +6,9 @@ browser**. It is a static, dependency-free port of the `wrg_devguard`
 `scan-secrets` engine — the same <!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules, the same include/exclude logic, the
 same line/column reporting.
 
-> **POC / demo.** A "try-it-now" capability demo of the engine, not a product.
+## Status
+
+Proof-of-concept — a "try-it-now" capability demo of the engine, not a product. The full scanner (CLI + GitHub Action) is [wrg-devguard](https://github.com/WRG-11/wrg-devguard).
 
 ## Why it's interesting
 
@@ -116,3 +118,16 @@ If it gets traction: a Pyodide-based pattern that runs `secrets.py` (and other
 zero-dep WRG tools) unmodified in-browser. The public GitHub Pages host is
 already live (<https://wrg-11.github.io/devguard-scan/>); the Pyodide pattern
 stays parked until the live demo proves demand.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## Part of the WRG-11 ecosystem
+
+- [wrg-devguard](https://github.com/WRG-11/wrg-devguard) — the full scanner this is a port of
+- [wrg-mcp-server](https://github.com/WRG-11/wrg-mcp-server) — WRG tools as an MCP server
+
+Full index → [github.com/WRG-11](https://github.com/WRG-11)
