@@ -8,7 +8,7 @@ same line/column reporting.
 
 ## Status
 
-Proof-of-concept — a "try-it-now" capability demo of the engine, not a product. The full scanner (CLI + GitHub Action) is [wrg-devguard](https://github.com/WRG-11/wrg-devguard).
+Proof-of-concept — a "try-it-now" capability demo of the engine, not a product.
 
 ## Why it's interesting
 
@@ -63,16 +63,7 @@ to pasted content drives those rules.
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1
 ```
 
-The JS engine + UI smoke run standalone. To also run the **Python parity**
-compare against the canonical engine, clone the public detection source and
-point the harness at it:
-
-```powershell
-git clone https://github.com/WRG-11/wrg-devguard
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1 -WrgDevguardSrc .\wrg-devguard\src
-```
-
-This:
+The JS engine + UI smoke run standalone via `run_parity.ps1`. The harness:
 
 1. Runs the **JS** engine (`scan.js`) over `fixtures/` via Node.
 2. Runs the **canonical Python** `wrg_devguard.secrets.scan_secrets()` over the
@@ -127,7 +118,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## Part of the WRG-11 ecosystem
 
-- [wrg-devguard](https://github.com/WRG-11/wrg-devguard) — the full scanner this is a port of
-- [wrg-mcp-server](https://github.com/WRG-11/wrg-mcp-server) — WRG tools as an MCP server
+- [mcp-objauthz-lab](https://github.com/WRG-11/mcp-objauthz-lab) — vulnerable-by-design MCP server for learning BOLA/IDOR
+- [wrg-sigma-rules](https://github.com/WRG-11/wrg-sigma-rules) — 68 sigma detection rules + 3 MCP tools
 
 Full index → [github.com/WRG-11](https://github.com/WRG-11)
