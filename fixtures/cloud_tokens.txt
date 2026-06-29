@@ -1,5 +1,5 @@
 # SYNTHETIC fixture (Pattern 34) — fake values only, no real credentials.
-# Each line triggers exactly ONE new R89-100b rule (all ERROR). No quotes, so
+# Each line triggers exactly ONE new rule (all ERROR). No quotes, so
 # the generic_secret_assignment rule never co-fires; each is a clean 1:1 case.
 # (.txt, not .env: *.env is gitignored repo-wide for OPSEC; .txt is in
 #  DEFAULT_INCLUDE and committable, so it ships with the parity corpus.)
