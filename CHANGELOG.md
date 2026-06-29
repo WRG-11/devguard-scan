@@ -22,6 +22,9 @@ scan engine or detection rules.
 
 ### Maintenance
 
+- ci: bumped `actions/checkout` 6.0.3 -> 7.0.0 (#7).
+- test: tidied synthetic fixture comment headers; no detection-behaviour
+  change. (03948ab)
 - ci(security): pinned `codeql-action` / `checkout` workflow refs to commit
   SHAs (0ba02ee #4); `actions/checkout` 4.3.1 -> 6.0.3 (#5).
 - ci: added `dependabot.yml` (GitHub Actions + npm, weekly). (8147fad #3)
