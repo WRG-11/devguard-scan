@@ -119,6 +119,6 @@ MIT — see [LICENSE](LICENSE).
 ## Part of the WRG-11 ecosystem
 
 - [mcp-objauthz-lab](https://github.com/WRG-11/mcp-objauthz-lab) — vulnerable-by-design MCP server for learning BOLA/IDOR
-- [wrg-sigma-rules](https://github.com/WRG-11/wrg-sigma-rules) — 68 sigma detection rules + 3 MCP tools
+- [wrg-sigma-rules](https://github.com/WRG-11/wrg-sigma-rules) — sigma detection rules for AI/LLM threat scenarios + 3 MCP tools
 
 Full index → [github.com/WRG-11](https://github.com/WRG-11)

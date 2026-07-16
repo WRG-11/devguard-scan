@@ -20,8 +20,26 @@ scan engine or detection rules.
   demo — the README now links the live instance and scopes "parked" to the
   Pyodide pattern only. (a0a1673)
 
+### Fixed
+
+- `SECURITY.md` + `scan.js` + `scripts/run_parity.ps1`: corrected a dead
+  link/instruction pointing at `WRG-11/wrg-devguard` -- that repo was never
+  published standalone (confirmed 404); the canonical `wrg_devguard` source
+  lives in the private WinstonRedGuard monorepo. Docs now say so honestly
+  instead of pointing contributors at a nonexistent clone target.
+  `scan.js`'s source-line citations for `common.py`'s `match_any`/`line_col`
+  were also stale (L34-44/L53-57 claimed, actual L42-52/L74-78) -- corrected
+  after re-verifying byte-identical parity (9/9 findings) against the
+  current monorepo source.
+- README.md: the WRG-11 ecosystem link for `wrg-sigma-rules` hardcoded
+  "68 sigma detection rules" -- that repo has since grown to 73+. Dropped
+  the hardcoded count (cross-repo counts can't be self-stamped the way
+  `secret_rule_count` is within this repo).
+
 ### Maintenance
 
+- ci: bumped `github/codeql-action/init` + `/analyze` 4.36.2 -> 4.36.3,
+  grouped so both bump together going forward (#8, #9, #12, #13).
 - ci: bumped `actions/checkout` 6.0.3 -> 7.0.0 (#7).
 - test: tidied synthetic fixture comment headers; no detection-behaviour
   change. (03948ab)
