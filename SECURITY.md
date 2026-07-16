@@ -36,6 +36,7 @@ or email **detectionfrontier@proton.me**.
 ## Scope
 
 This policy covers the `devguard-scan` static scanner (browser JS engine and
-parity harness). The canonical Python detection engine lives in
-[`WRG-11/wrg-devguard`](https://github.com/WRG-11/wrg-devguard) — report
-findings against the shared rule patterns there.
+parity harness). The rule patterns are ported verbatim from a canonical
+`wrg_devguard` Python detection engine that is not published as a standalone
+public repo (part of a private monorepo) — report findings against the
+patterns as they appear in this repo's own `scan.js`.
