@@ -8,24 +8,81 @@ const $ = (id) => document.getElementById(id);
 const droppedFiles = []; // { path, text }
 
 // --- file intake -----------------------------------------------------------
-function readFile(file) {
+function readFileAsText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () =>
-      resolve({ path: file.webkitRelativePath || file.name, text: String(reader.result) });
+    reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(reader.error);
     reader.readAsText(file); // local read only — nothing is uploaded
   });
 }
 
+function upsertDroppedFile(rec) {
+  const existing = droppedFiles.findIndex((f) => f.path === rec.path);
+  if (existing >= 0) droppedFiles[existing] = rec;
+  else droppedFiles.push(rec);
+}
+
 async function addFiles(fileList) {
   for (const file of fileList) {
     try {
-      const rec = await readFile(file);
-      // de-dupe by path
-      const existing = droppedFiles.findIndex((f) => f.path === rec.path);
-      if (existing >= 0) droppedFiles[existing] = rec;
-      else droppedFiles.push(rec);
+      const text = await readFileAsText(file);
+      upsertDroppedFile({ path: file.webkitRelativePath || file.name, text });
+    } catch {
+      /* unreadable / binary — skip silently */
+    }
+  }
+  renderFileList();
+}
+
+// --- directory-drop support (Chromium/WebKit DataTransferItem entries API) -
+// Folder drag-and-drop only carries the top-level File objects via
+// dataTransfer.files -- nested files inside a dropped directory never
+// appear there. Reading the directory tree requires the (non-standard but
+// widely supported) webkitGetAsEntry() + FileSystemDirectoryReader walk
+// below. If the browser doesn't expose it, callers fall back to the flat
+// dataTransfer.files list (individual file drops still work everywhere).
+
+function entryToFile(entry) {
+  return new Promise((resolve, reject) => entry.file(resolve, reject));
+}
+
+function readDirEntries(reader) {
+  return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+}
+
+async function walkEntry(entry, out) {
+  if (entry.isFile) {
+    const file = await entryToFile(entry);
+    // entry.fullPath is rooted at the dropped item ("/subdir/file.txt");
+    // strip the leading slash to match webkitRelativePath's convention.
+    out.push({ file, relPath: entry.fullPath.replace(/^\//, "") });
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    // readEntries() returns results in batches and does NOT guarantee a
+    // complete listing in one call (documented Chromium quirk) -- keep
+    // calling until it returns an empty array.
+    let batch;
+    do {
+      batch = await readDirEntries(reader);
+      for (const child of batch) await walkEntry(child, out);
+    } while (batch.length > 0);
+  }
+}
+
+async function addDroppedEntries(entries) {
+  const collected = [];
+  for (const entry of entries) {
+    try {
+      await walkEntry(entry, collected);
+    } catch {
+      /* unreadable entry — skip silently */
+    }
+  }
+  for (const { file, relPath } of collected) {
+    try {
+      const text = await readFileAsText(file);
+      upsertDroppedFile({ path: relPath || file.name, text });
     } catch {
       /* unreadable / binary — skip silently */
     }
@@ -136,6 +193,20 @@ function init() {
     }),
   );
   drop.addEventListener("drop", (e) => {
+    const items = e.dataTransfer && e.dataTransfer.items;
+    if (items && items.length && typeof items[0].webkitGetAsEntry === "function") {
+      const entries = [];
+      for (const item of items) {
+        const entry = item.webkitGetAsEntry();
+        if (entry) entries.push(entry);
+      }
+      if (entries.length > 0) {
+        addDroppedEntries(entries);
+        return;
+      }
+    }
+    // Fallback (no entries API, or none resolved): flat file list, no
+    // directory recursion. Individual file drops still work everywhere.
     if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
   });
 }

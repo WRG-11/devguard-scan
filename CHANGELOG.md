@@ -11,8 +11,19 @@ here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Documentation and CI maintenance after the initial `0.1.0` cut; no change to the
-scan engine or detection rules.
+Documentation and CI maintenance after the initial `0.1.0` cut, plus one real
+UI fix; no change to the scan engine or detection rules.
+
+### Added
+
+- `app.js`: real recursive directory-drop support via the
+  `DataTransferItem.webkitGetAsEntry()` + `FileSystemDirectoryReader` walk.
+  The UI copy already claimed "Folders supported in Chromium" but the drop
+  handler only ever read `dataTransfer.files` (flat, top-level files only --
+  a dropped folder contributes nothing there); nested files never actually
+  reached the scanner. Verified end-to-end with a new UI-smoke scenario
+  (nested `project/sub/nested.env` -> finding rendered with its relative
+  path, secret redacted).
 
 ### Changed
 

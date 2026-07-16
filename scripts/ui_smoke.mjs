@@ -72,5 +72,70 @@ for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? "PASS" : "FAIL"}  ${k}`);
   if (!v) ok = false;
 }
+
+// --- directory-drop scenario -------------------------------------------
+// Simulates dropping a folder via DataTransferItem.webkitGetAsEntry() (see
+// app.js's addDroppedEntries/walkEntry) and proves a NESTED file is picked
+// up with its relative path -- not just top-level flat drops.
+const DIR_SECRET = "sk-proj-ZZZZ9999YYYY8888XXXX7777WWWW";
+
+class MockFileReader {
+  readAsText(file) {
+    queueMicrotask(() => {
+      this.result = file.__text; // app.js's onload reads reader.result, not the event arg
+      if (this.onload) this.onload({ target: this });
+    });
+  }
+}
+globalThis.FileReader = MockFileReader;
+
+function mockFileEntry(fullPath, text) {
+  return { isFile: true, isDirectory: false, fullPath, file: (resolve) => resolve({ __text: text }) };
+}
+
+function mockDirEntry(fullPath, children) {
+  let served = false;
+  return {
+    isFile: false,
+    isDirectory: true,
+    fullPath,
+    createReader: () => ({
+      readEntries: (resolve) => {
+        // Chromium batches readEntries() results and returns [] once
+        // exhausted -- simulate that with a one-shot flag.
+        if (served) resolve([]);
+        else {
+          served = true;
+          resolve(children);
+        }
+      },
+    }),
+  };
+}
+
+const nestedFileEntry = mockFileEntry("/project/sub/nested.env", `OPENAI_API_KEY=${DIR_SECRET}`);
+const topDirEntry = mockDirEntry("/project", [mockDirEntry("/project/sub", [nestedFileEntry])]);
+
+els.drop.fire("drop", {
+  preventDefault() {},
+  dataTransfer: { items: [{ webkitGetAsEntry: () => topDirEntry }] },
+});
+// The directory walk is async (Promise-chained entry.file()/readEntries());
+// give the microtask queue a turn before re-scanning against dropped files.
+await new Promise((r) => setTimeout(r, 0));
+els.text.value = ""; // scan dropped files only, not the earlier pasted text
+els.scan.fire("click");
+
+const dirHtml = els.results.innerHTML;
+const dirChecks = {
+  "nested file relative path shown": dirHtml.includes("project/sub/nested.env"),
+  "nested finding rule shown": dirHtml.includes("openai_api_key"),
+  "nested raw secret ABSENT": !dirHtml.includes(DIR_SECRET),
+};
+for (const [k, v] of Object.entries(dirChecks)) {
+  console.log(`${v ? "PASS" : "FAIL"}  ${k}`);
+  if (!v) ok = false;
+}
+
 console.log(ok ? "\nUI smoke: PASS" : "\nUI smoke: FAIL");
 process.exit(ok ? 0 : 1);
