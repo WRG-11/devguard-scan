@@ -282,8 +282,67 @@ export function scanFiles(files, opts = {}) {
   return findings;
 }
 
+// --- allowlist — verbatim port of cli.py's _finding_matches_rule /
+// _apply_allowlist (default source: <scan_root>/.wrg/allowlist.json,
+// {"rules": [{check, rule_id, severity, file, snippet_contains, reason}]}).
+// Every previously-shipped report hardcoded summary.suppressed to 0 --
+// the canonical CLI's allowlist mechanism was never ported at all.
+export function findingMatchesRule(finding, rule) {
+  const check = rule.check;
+  const ruleId = rule.rule_id;
+  const severity = rule.severity;
+  const filePattern = rule.file;
+  const snippetContains = rule.snippet_contains;
+
+  if (typeof check === "string" && check.trim() && finding.check !== check.trim()) return false;
+  if (typeof ruleId === "string" && ruleId.trim() && finding.rule_id !== ruleId.trim()) return false;
+  if (
+    typeof severity === "string" &&
+    severity.trim() &&
+    finding.severity.toUpperCase() !== severity.trim().toUpperCase()
+  ) {
+    return false;
+  }
+  if (
+    typeof filePattern === "string" &&
+    filePattern.trim() &&
+    !fnmatchToRegExp(filePattern.trim()).test(finding.file) // fnmatch.fnmatch(finding.file, file_pattern)
+  ) {
+    return false;
+  }
+  if (
+    typeof snippetContains === "string" &&
+    snippetContains.trim() &&
+    !finding.snippet.includes(snippetContains)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+// Returns { active, suppressed } -- suppressed carries the same
+// {finding, reason, rule} shape as the Python CLI's JSON output.
+export function applyAllowlist(findings, allowlistRules) {
+  if (!allowlistRules || allowlistRules.length === 0) return { active: findings, suppressed: [] };
+  const active = [];
+  const suppressed = [];
+  for (const finding of findings) {
+    const matchedRule = allowlistRules.find((rule) => findingMatchesRule(finding, rule));
+    if (!matchedRule) {
+      active.push(finding);
+      continue;
+    }
+    suppressed.push({
+      finding,
+      reason: String(matchedRule.reason || "allowlisted"),
+      rule: { check: matchedRule.check, rule_id: matchedRule.rule_id, file: matchedRule.file },
+    });
+  }
+  return { active, suppressed };
+}
+
 // Build the same JSON envelope as the parity reference dumper.
-export function buildReport(findings, scanRoot = ".") {
+export function buildReport(findings, scanRoot = ".", suppressedCount = 0) {
   const error = findings.filter((f) => f.severity.toUpperCase() === "ERROR").length;
   const warning = findings.filter((f) => f.severity.toUpperCase() === "WARNING").length;
   return {
@@ -295,7 +354,7 @@ export function buildReport(findings, scanRoot = ".") {
       total_findings: findings.length,
       error,
       warning,
-      suppressed: 0,
+      suppressed: suppressedCount,
       fail_on: "error",
     },
     findings,

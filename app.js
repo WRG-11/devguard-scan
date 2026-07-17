@@ -6,6 +6,17 @@ import { scanFiles, buildReport } from "./scan.js";
 
 const $ = (id) => document.getElementById(id);
 const droppedFiles = []; // { path, text }
+let currentReport = null; // last-rendered report, held for "Download report"
+
+// Comma-separated glob-list input -> array (or null to fall back to the
+// engine's built-in list). Blank/whitespace-only entries are dropped.
+function parsePatternList(value) {
+  const items = (value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : null;
+}
 
 // --- file intake -----------------------------------------------------------
 function readFileAsText(file) {
@@ -118,12 +129,33 @@ function runScan() {
   const out = $("results");
   if (inputs.length === 0) {
     out.innerHTML = '<div class="panel empty">Nothing to scan — paste content or drop a file.</div>';
+    currentReport = null;
+    $("download").disabled = true;
     return;
   }
 
-  const findings = scanFiles(inputs);
+  const include = parsePatternList($("include-override").value);
+  const exclude = parsePatternList($("exclude-override").value);
+  const opts = {};
+  if (include) opts.include = include;
+  if (exclude) opts.exclude = exclude;
+
+  const findings = scanFiles(inputs, opts);
   const report = buildReport(findings);
+  currentReport = report;
+  $("download").disabled = false;
   renderResults(report);
+}
+
+function downloadReport() {
+  if (!currentReport) return;
+  const blob = new Blob([JSON.stringify(currentReport, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "devguard-scan-report.json";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderResults(report) {
@@ -173,7 +205,10 @@ function init() {
     droppedFiles.length = 0;
     renderFileList();
     $("results").innerHTML = "";
+    currentReport = null;
+    $("download").disabled = true;
   });
+  $("download").addEventListener("click", downloadReport);
 
   const drop = $("drop");
   const filein = $("filein");

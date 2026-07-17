@@ -10,10 +10,17 @@
 // logic to drift out of parity. The only hardcoded shortcut is skipping
 // .git/ during the walk (always excluded anyway; its object store is large
 // and irrelevant, so there's no correctness cost to skipping the descent).
-import { readdirSync, statSync, readFileSync } from "node:fs";
+import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { scanFiles, buildReport, DEFAULT_INCLUDE, DEFAULT_EXCLUDE, MAX_FILE_BYTES } from "../scan.js";
+import {
+  scanFiles,
+  buildReport,
+  applyAllowlist,
+  DEFAULT_INCLUDE,
+  DEFAULT_EXCLUDE,
+  MAX_FILE_BYTES,
+} from "../scan.js";
 
 const ALWAYS_SKIP_DIRS = new Set([".git"]);
 
@@ -25,6 +32,10 @@ Usage: node bin/scan.mjs [dir] [options]
   dir                  root directory to scan (default: .)
   --include p1,p2,...  override include glob patterns (default: built-in list)
   --exclude p1,p2,...  override exclude glob patterns (default: built-in list)
+  --allowlist path     allowlist JSON path (default: <dir>/.wrg/allowlist.json
+                        if it exists). Same schema as the canonical CLI:
+                        {"rules": [{"rule_id": "...", "file": "glob*",
+                        "reason": "why"}]} -- unspecified fields are wildcards.
   --json               print the full JSON report instead of a text summary
   -h, --help           show this help
 
@@ -34,16 +45,30 @@ the canonical wrg_devguard Python engine (see SECURITY.md).`);
 }
 
 function parseArgs(argv) {
-  const opts = { root: ".", include: null, exclude: null, json: false, help: false };
+  const opts = { root: ".", include: null, exclude: null, allowlist: null, json: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "-h" || a === "--help") opts.help = true;
     else if (a === "--include") opts.include = argv[++i].split(",");
     else if (a === "--exclude") opts.exclude = argv[++i].split(",");
+    else if (a === "--allowlist") opts.allowlist = argv[++i];
     else if (a === "--json") opts.json = true;
     else opts.root = a;
   }
   return opts;
+}
+
+export function loadAllowlist(allowlistArg, root) {
+  const path = allowlistArg || join(root, ".wrg", "allowlist.json");
+  if (!existsSync(path)) return [];
+  let payload;
+  try {
+    payload = JSON.parse(readFileSync(path, "utf-8"));
+  } catch (err) {
+    throw new Error(`allowlist file is not valid json: ${path} (${err.message})`);
+  }
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.rules)) return [];
+  return payload.rules.filter((r) => r && typeof r === "object");
 }
 
 function collectAllFiles(dir, out) {
@@ -63,7 +88,7 @@ function collectAllFiles(dir, out) {
   }
 }
 
-export function runScan({ root, include, exclude } = {}) {
+export function runScan({ root, include, exclude, allowlistRules } = {}) {
   const inc = include || DEFAULT_INCLUDE;
   const exc = exclude || DEFAULT_EXCLUDE;
 
@@ -82,8 +107,9 @@ export function runScan({ root, include, exclude } = {}) {
     }
   }
 
-  const findings = scanFiles(files, { include: inc, exclude: exc });
-  return buildReport(findings, root);
+  const rawFindings = scanFiles(files, { include: inc, exclude: exc });
+  const { active, suppressed } = applyAllowlist(rawFindings, allowlistRules || []);
+  return buildReport(active, root, suppressed.length);
 }
 
 function main() {
@@ -93,14 +119,21 @@ function main() {
     process.exit(0);
   }
 
-  const report = runScan({ root: opts.root, include: opts.include, exclude: opts.exclude });
+  const allowlistRules = loadAllowlist(opts.allowlist, opts.root);
+  const report = runScan({
+    root: opts.root,
+    include: opts.include,
+    exclude: opts.exclude,
+    allowlistRules,
+  });
 
   if (opts.json) {
     console.log(JSON.stringify(report, null, 2));
   } else {
+    const suppressedNote = report.summary.suppressed > 0 ? `, ${report.summary.suppressed} suppressed` : "";
     console.log(
       `devguard-scan: ${report.summary.total_findings} finding(s) ` +
-        `(${report.summary.error} error, ${report.summary.warning} warning) in ${opts.root}`,
+        `(${report.summary.error} error, ${report.summary.warning} warning${suppressedNote}) in ${opts.root}`,
     );
     for (const f of report.findings) {
       console.log(`  ${f.severity.padEnd(7)} ${f.file}:${f.line}:${f.column}  ${f.rule_id}  ${f.message}`);

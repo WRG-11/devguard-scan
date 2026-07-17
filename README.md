@@ -45,7 +45,24 @@ loads, you can disconnect from the network entirely — it keeps working.
 node bin/scan.mjs .                       # scan the current directory, text summary
 node bin/scan.mjs . --json                # full JSON report (same schema as the browser)
 node bin/scan.mjs . --exclude "**/dist/**,**/*.lock"   # override the built-in exclude list
+node bin/scan.mjs . --allowlist .wrg/allowlist.json    # suppress known-accepted findings
 ```
+
+An allowlist (auto-discovered at `<dir>/.wrg/allowlist.json` if present, same
+convention as the canonical CLI) suppresses matching findings instead of
+failing the scan on them:
+
+```json
+{ "rules": [
+  { "rule_id": "google_api_key", "file": "**/testdata/**", "reason": "synthetic fixture" }
+] }
+```
+
+Each field (`check`/`rule_id`/`severity`/`file`/`snippet_contains`) is a
+wildcard when omitted; a rule matches when every field it DOES specify
+matches. Verified byte-for-byte against the canonical `wrg_devguard.cli`
+`_apply_allowlist()` with an identical rule set (2026-07-17): same active
+findings, same suppressed count.
 
 Or as a GitHub Action, in any repo:
 
@@ -80,7 +97,11 @@ if you want stability against future changes on this branch.
 Include/exclude follow `secrets.py` `DEFAULT_INCLUDE` + `policy.py`
 `DEFAULT_EXCLUDE` (e.g. `node_modules/`, `dist/`, `*.png`, `*.lock` are skipped;
 only `.env/.py/.js/.json/...` extensions are scanned). The file name you assign
-to pasted content drives those rules.
+to pasted content drives those rules. The "Advanced: include/exclude patterns"
+section in the UI lets you override either list for a one-off scan (e.g. to
+force-include a file extension not in the default list) without touching the
+built-in defaults. A "Download report (.json)" button exports the last scan
+result in the same schema as `--json` on the CLI.
 
 ## Parity & smoke harness
 
@@ -98,17 +119,20 @@ harness:
 3. Compares finding sets + severity counts (`rule_id`/`file`/`line`/`column`) —
    exits non-zero on any divergence.
 4. Runs a headless UI-path smoke proving the browser glue renders findings with
-   `[REDACTED]` and never the raw value.
+   `[REDACTED]` and never the raw value, that a dropped directory's nested
+   files are picked up, and that an include-override reaches the scan.
 5. Runs a CLI smoke (`bin/scan.mjs`) proving the filesystem entrypoint finds
-   the same 9/9 corpus findings, honors an `--exclude` override, and exits 0
-   on a clean directory.
+   the same 9/9 corpus findings, honors `--exclude`/`--allowlist` overrides
+   (allowlist numbers cross-checked against the real `_apply_allowlist()`),
+   and exits 0 on a clean directory.
 
 > The Python CLI's `--json-out` is fully redacted (counts only, no locations)
 > for OPSEC, so parity is checked against the detection *library* directly via
 > `scripts/py_reference_dump.py` — the same code the CLI calls.
 
 **Last run:** 9/9 findings byte-identical across the 10-rule corpus, summary
-counts identical (6 ERROR + 3 WARNING); UI smoke PASS.
+counts identical (6 ERROR + 3 WARNING); UI smoke PASS (13/13); CLI smoke
+PASS (14/14, including allowlist parity).
 
 ## Fixtures
 
