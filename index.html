@@ -28,6 +28,7 @@
         --warning: #d29922;
         --ok: #3fb950;
         --accent: #58a6ff;
+        --on-accent: #0d1117; /* text color for content placed on top of --accent */
       }
       /* Light theme: same token set, applied via [data-theme] so the toggle
          (or an OS-level prefers-color-scheme default, see the init script)
@@ -43,6 +44,7 @@
         --warning: #9a6700;
         --ok: #1a7f37;
         --accent: #0969da;
+        --on-accent: #ffffff; /* dark's light-blue accent wants dark text; light's saturated blue wants white */
       }
       * { box-sizing: border-box; }
       body {
@@ -93,7 +95,7 @@
         width: 100%;
         min-height: 180px;
         resize: vertical;
-        background: #0b0f14;
+        background: var(--bg);
         color: var(--text);
         border: 1px solid var(--border);
         border-radius: 6px;
@@ -102,7 +104,7 @@
         font-size: 0.85rem;
       }
       input[type="text"] {
-        background: #0b0f14;
+        background: var(--bg);
         color: var(--text);
         border: 1px solid var(--border);
         border-radius: 6px;
@@ -128,7 +130,7 @@
       .files li { padding: 0.15rem 0; }
       button {
         background: var(--accent);
-        color: #0d1117;
+        color: var(--on-accent);
         border: 0;
         border-radius: 6px;
         padding: 0.55rem 1.1rem;
@@ -153,7 +155,10 @@
       .empty { color: var(--muted); padding: 1rem 0; }
       .err-banner { background: rgba(248,81,73,0.12); border: 1px solid var(--error); color: var(--error); padding: 0.75rem; border-radius: 6px; margin-top: 1rem; font-size: 0.85rem; }
       footer { color: var(--muted); font-size: 0.75rem; padding: 0 1.25rem 2rem; max-width: 980px; margin: 0 auto; }
-      code { background: #0b0f14; padding: 0.1rem 0.35rem; border-radius: 4px; }
+      code { background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px; }
+      details.advanced { margin-top: 0.75rem; }
+      details.advanced summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); }
+      details.advanced summary:hover { color: var(--text); }
     </style>
   </head>
   <body>
@@ -181,6 +186,20 @@
           </div>
         </div>
 
+        <details class="advanced">
+          <summary>Advanced: include/exclude patterns</summary>
+          <div class="row" style="margin-top:0.5rem;">
+            <div style="flex:1; min-width:220px;">
+              <label for="include-override">Include (comma-separated globs, blank = built-in list)</label>
+              <input type="text" id="include-override" placeholder="**/*.env, **/*.py, …" />
+            </div>
+            <div style="flex:1; min-width:220px;">
+              <label for="exclude-override">Exclude (comma-separated globs, blank = built-in list)</label>
+              <input type="text" id="exclude-override" placeholder="**/node_modules/**, **/*.lock, …" />
+            </div>
+          </div>
+        </details>
+
         <div id="drop">
           <strong>Drop files here</strong> (or click to choose). Multiple files OK. Folders supported in Chromium.
           <input type="file" id="filein" multiple style="display:none" />
@@ -190,6 +209,7 @@
         <div class="row" style="margin-top:0.9rem;">
           <button id="scan">Scan</button>
           <button id="clear" class="secondary">Clear</button>
+          <button id="download" class="secondary" disabled>Download report (.json)</button>
         </div>
       </div>
 

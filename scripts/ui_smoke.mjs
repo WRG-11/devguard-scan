@@ -40,6 +40,9 @@ const els = {
   scan: makeEl(),
   clear: makeEl(),
   results: makeEl(),
+  "include-override": makeEl(),
+  "exclude-override": makeEl(),
+  download: makeEl(),
 };
 
 globalThis.document = {
@@ -133,6 +136,32 @@ const dirChecks = {
   "nested raw secret ABSENT": !dirHtml.includes(DIR_SECRET),
 };
 for (const [k, v] of Object.entries(dirChecks)) {
+  console.log(`${v ? "PASS" : "FAIL"}  ${k}`);
+  if (!v) ok = false;
+}
+
+// --- include/exclude override scenario ----------------------------------
+// A filename with no extension matches none of the built-in DEFAULT_INCLUDE
+// globs, so it's skipped by default -- proves the override actually reaches
+// scanFiles() (see runScan()'s parsePatternList()), not just cosmetic UI.
+els.clear.fire("click");
+const OVERRIDE_SECRET = "sk-proj-QQQQ1111RRRR2222SSSS3333TTTT";
+els.fname.value = "secret"; // no extension -> matches nothing in DEFAULT_INCLUDE
+els.text.value = `OPENAI_API_KEY=${OVERRIDE_SECRET}`;
+
+els.scan.fire("click"); // no override yet -> expect skipped (empty panel, no table)
+const beforeOverrideHtml = els.results.innerHTML;
+
+els["include-override"].value = "secret";
+els.scan.fire("click"); // now included -> expect a finding
+
+const afterOverrideHtml = els.results.innerHTML;
+const overrideChecks = {
+  "no-extension file skipped by default include list": !beforeOverrideHtml.includes("<table>"),
+  "--include override picks up the file": afterOverrideHtml.includes("<table>") && afterOverrideHtml.includes("openai_api_key"),
+  "override-scan secret still redacted": !afterOverrideHtml.includes(OVERRIDE_SECRET),
+};
+for (const [k, v] of Object.entries(overrideChecks)) {
   console.log(`${v ? "PASS" : "FAIL"}  ${k}`);
   if (!v) ok = false;
 }

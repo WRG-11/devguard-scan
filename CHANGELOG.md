@@ -11,10 +11,29 @@ here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Documentation and CI maintenance after the initial `0.1.0` cut, one real UI
-fix, and a CI-usability upgrade; no change to the detection rules themselves.
+Documentation and CI maintenance after the initial `0.1.0` cut, two real UI
+fixes, and two usability upgrades (allowlist support, CLI/Action); no change
+to the 10 detection rules themselves.
 
 ### Added
+
+- **Allowlist support** (`scan.js`: `findingMatchesRule`/`applyAllowlist`;
+  `bin/scan.mjs`: `--allowlist <path>`, auto-discovers `<dir>/.wrg/
+  allowlist.json`; browser: n/a this round, CLI/CI is the primary use case).
+  Every prior report hardcoded `summary.suppressed` to `0` -- the canonical
+  CLI's real allowlist mechanism (`_apply_allowlist`, matches on
+  check/rule_id/severity/file-glob/snippet_contains) was never ported.
+  Cross-checked directly against `wrg_devguard.cli._apply_allowlist()` with
+  an identical rule set (2026-07-17): 9 findings -> 5 active + 4 suppressed,
+  same findings suppressed, same counts.
+- **Browser UI: include/exclude override** -- a collapsible "Advanced"
+  section lets a one-off scan override either glob list (e.g. force-include
+  an extension the built-in list skips) without touching the defaults.
+  Verified with a dedicated UI-smoke scenario (a no-extension file is
+  skipped by default, then picked up once overridden).
+- **Browser UI: "Download report (.json)" button** -- exports the last scan
+  result (same schema as CLI `--json`) as a local file download; disabled
+  until a scan has run, re-disabled on Clear.
 
 - **`bin/scan.mjs`** -- a filesystem CLI over the same zero-dependency engine
   (`scan.js`) the browser uses. `node bin/scan.mjs <dir> [--include ...]
@@ -52,6 +71,15 @@ fix, and a CI-usability upgrade; no change to the detection rules themselves.
 
 ### Fixed
 
+- `index.html`: `textarea`, `input[type="text"]`, and `code` backgrounds
+  were hardcoded dark hex values (`#0b0f14`) instead of `var(--bg)` --
+  latent since the CSS predates the theme toggle, but broke light mode the
+  moment it existed (dark input wells against a light page). The primary
+  `button`'s text color was also hardcoded dark (`#0d1117`), which is fine
+  against dark mode's light-blue `--accent` but low-contrast against light
+  mode's more saturated blue -- added a theme-aware `--on-accent` token
+  (dark text in dark mode, white in light mode) instead of guessing a
+  single accent shade that would look right in both.
 - `SECURITY.md` + `scan.js` + `scripts/run_parity.ps1`: corrected a dead
   link/instruction pointing at `WRG-11/wrg-devguard` -- that repo was never
   published standalone (confirmed 404); the canonical `wrg_devguard` source
