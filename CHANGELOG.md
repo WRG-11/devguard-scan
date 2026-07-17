@@ -11,11 +11,30 @@ here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Documentation and CI maintenance after the initial `0.1.0` cut, plus one real
-UI fix; no change to the scan engine or detection rules.
+Documentation and CI maintenance after the initial `0.1.0` cut, one real UI
+fix, and a CI-usability upgrade; no change to the detection rules themselves.
 
 ### Added
 
+- **`bin/scan.mjs`** -- a filesystem CLI over the same zero-dependency engine
+  (`scan.js`) the browser uses. `node bin/scan.mjs <dir> [--include ...]
+  [--exclude ...] [--json]`, exit code 1 on any ERROR-severity finding.
+  `scan.js` was already documented as running "in browser AND Node" but the
+  only Node entrypoint was the internal parity-dump script; this makes that
+  capability directly usable (pre-commit hook, plain CI step).
+- **`action.yml`** -- a composite GitHub Action wrapping the CLI, so other
+  repos can add `uses: WRG-11/devguard-scan@main` as a secret-scan CI gate
+  without vendoring anything. Exposes `path`/`include`/`exclude` inputs and
+  `total-findings`/`error-count`/`status` outputs.
+- `.github/workflows/self-scan.yml` -- dogfoods `action.yml` against this
+  repo's own source on every push/PR (also the working usage example).
+- `scripts/cli_smoke.mjs` -- smoke-tests `bin/scan.mjs` (known-corpus finding
+  count, `--exclude` override, clean-directory PASS/exit-0), wired into
+  `run_parity.ps1` as step 5/5.
+- `index.html`/`app.js`: light/dark theme toggle (CSS custom-property token
+  swap via `[data-theme]`; localStorage-persisted, falls back to
+  `prefers-color-scheme`, applied pre-paint to avoid a flash of the wrong
+  theme). Purely cosmetic -- no change to scanning behavior.
 - `app.js`: real recursive directory-drop support via the
   `DataTransferItem.webkitGetAsEntry()` + `FileSystemDirectoryReader` walk.
   The UI copy already claimed "Folders supported in Chromium" but the drop

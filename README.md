@@ -36,6 +36,32 @@ Any static host (GitHub Pages, Netlify, S3) works the same way — a live
 instance runs at <https://wrg-11.github.io/devguard-scan/>. After the page
 loads, you can disconnect from the network entirely — it keeps working.
 
+## Use it in CI
+
+`scan.js` runs unchanged in Node, so the same engine is also a filesystem CLI
+(`bin/scan.mjs`) — exit code 1 on any ERROR-severity finding, 0 otherwise:
+
+```bash
+node bin/scan.mjs .                       # scan the current directory, text summary
+node bin/scan.mjs . --json                # full JSON report (same schema as the browser)
+node bin/scan.mjs . --exclude "**/dist/**,**/*.lock"   # override the built-in exclude list
+```
+
+Or as a GitHub Action, in any repo:
+
+```yaml
+- uses: actions/checkout@v7
+- uses: WRG-11/devguard-scan@main
+  with:
+    path: '.'          # optional, default '.'
+    exclude: ''         # optional, comma-separated; overrides the built-in list
+```
+
+`.github/workflows/self-scan.yml` in this repo runs the action against its
+own source as both a real CI gate and a working usage example. No version
+tags exist yet (see CHANGELOG) — pin to `@main` for now, or to a commit SHA
+if you want stability against future changes on this branch.
+
 ## What it detects (<!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules — ported verbatim)
 
 | rule_id                     | severity | source                  |
@@ -63,7 +89,8 @@ to pasted content drives those rules.
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1
 ```
 
-The JS engine + UI smoke run standalone via `run_parity.ps1`. The harness:
+The JS engine + UI smoke + CLI smoke run standalone via `run_parity.ps1`. The
+harness:
 
 1. Runs the **JS** engine (`scan.js`) over `fixtures/` via Node.
 2. Runs the **canonical Python** `wrg_devguard.secrets.scan_secrets()` over the
@@ -72,6 +99,9 @@ The JS engine + UI smoke run standalone via `run_parity.ps1`. The harness:
    exits non-zero on any divergence.
 4. Runs a headless UI-path smoke proving the browser glue renders findings with
    `[REDACTED]` and never the raw value.
+5. Runs a CLI smoke (`bin/scan.mjs`) proving the filesystem entrypoint finds
+   the same 9/9 corpus findings, honors an `--exclude` override, and exits 0
+   on a clean directory.
 
 > The Python CLI's `--json-out` is fully redacted (counts only, no locations)
 > for OPSEC, so parity is checked against the detection *library* directly via
@@ -92,10 +122,12 @@ include/exclude/no-false-positive paths. No real credential is committed.
 index.html   static SPA (inline CSS, no CDN)
 app.js       UI glue (intake → scan → render); no network APIs
 scan.js      shared engine — runs in browser AND Node (single source of truth)
+bin/scan.mjs filesystem CLI over the same engine (see "Use it in CI")
+action.yml   GitHub Action wrapper around bin/scan.mjs
 package.json type:module (zero runtime deps)
 fixtures/    synthetic parity corpus
 scripts/     js_reference_dump.mjs · py_reference_dump.py · parity_compare.py
-             ui_smoke.mjs · run_parity.ps1
+             ui_smoke.mjs · cli_smoke.mjs · run_parity.ps1
 ```
 
 ## Out of scope (MVP)

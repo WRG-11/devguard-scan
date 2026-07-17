@@ -4,6 +4,7 @@
 #   2. Python tool dump (canonical wrg_devguard.secrets) over fixtures/
 #   3. Compare finding sets + counts  (exit 1 on any divergence)
 #   4. Headless UI-path smoke
+#   5. CLI (bin/scan.mjs) smoke
 #
 # Run from web/devguard-scan/:
 #   pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1
@@ -41,9 +42,13 @@ if (-not $WrgDevguardSrc -or -not (Test-Path $WrgDevguardSrc)) {
     if ($LASTEXITCODE -ne 0) { Write-Host "PARITY FAIL" -ForegroundColor Red; exit 1 }
 }
 
-Write-Host "== [4/4] UI-path smoke ==" -ForegroundColor Cyan
+Write-Host "== [4/5] UI-path smoke ==" -ForegroundColor Cyan
 node (Join-Path $here 'scripts/ui_smoke.mjs')
 if ($LASTEXITCODE -ne 0) { Write-Host "UI SMOKE FAIL" -ForegroundColor Red; exit 1 }
+
+Write-Host "== [5/5] CLI smoke ==" -ForegroundColor Cyan
+node (Join-Path $here 'scripts/cli_smoke.mjs')
+if ($LASTEXITCODE -ne 0) { Write-Host "CLI SMOKE FAIL" -ForegroundColor Red; exit 1 }
 
 Write-Host "`nALL GREEN — parity + smoke" -ForegroundColor Green
 exit 0
