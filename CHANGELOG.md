@@ -83,7 +83,7 @@ to the 10 detection rules themselves.
 - `SECURITY.md` + `scan.js` + `scripts/run_parity.ps1`: corrected a dead
   link/instruction pointing at `WRG-11/wrg-devguard` -- that repo was never
   published standalone (confirmed 404); the canonical `wrg_devguard` source
-  lives in the private WinstonRedGuard monorepo. Docs now say so honestly
+  lives in a private monorepo. Docs now say so honestly
   instead of pointing contributors at a nonexistent clone target.
   `scan.js`'s source-line citations for `common.py`'s `match_any`/`line_col`
   were also stale (L34-44/L53-57 claimed, actual L42-52/L74-78) -- corrected

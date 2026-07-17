@@ -8,7 +8,7 @@
 //
 // Verified byte-identical against the current monorepo source (2026-07-17):
 // 9/9 findings + summary counts matched via
-// `run_parity.ps1 -WrgDevguardSrc <monorepo>/apps/wrg_devguard/src`.
+// `run_parity.ps1 -WrgDevguardSrc <monorepo>/wrg_devguard/src`.
 //
 // This module is dependency-free ES and runs UNCHANGED in the browser (UI) and
 // in Node (parity harness). It performs NO I/O and NO network calls — callers

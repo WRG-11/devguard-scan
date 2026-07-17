@@ -9,9 +9,9 @@
 # Run from web/devguard-scan/:
 #   pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1
 # The Python parity step needs the canonical detection source (wrg_devguard),
-# which lives in the private WinstonRedGuard monorepo (apps/wrg_devguard) --
+# which lives in a private monorepo (maintainer-only) --
 # not published as a standalone public repo. If you have access, pass
-# -WrgDevguardSrc <monorepo-checkout>/apps/wrg_devguard/src (or set
+# -WrgDevguardSrc <monorepo-checkout>/wrg_devguard/src (or set
 # $env:WRG_DEVGUARD_SRC). The JS engine + UI smoke run standalone regardless;
 # the Python compare is skipped with a notice if the source is not provided.
 [CmdletBinding()]
@@ -30,7 +30,7 @@ node (Join-Path $here 'scripts/js_reference_dump.mjs') $fixtures $jsOut
 
 if (-not $WrgDevguardSrc -or -not (Test-Path $WrgDevguardSrc)) {
     Write-Host "== [2-3/4] Python parity SKIPPED ==" -ForegroundColor Yellow
-    Write-Host "  Provide -WrgDevguardSrc <monorepo-checkout>/apps/wrg_devguard/src to run parity" -ForegroundColor Yellow
+    Write-Host "  Provide -WrgDevguardSrc <monorepo-checkout>/wrg_devguard/src to run parity" -ForegroundColor Yellow
     Write-Host "  (maintainer-only: the canonical source is private, not a standalone repo)." -ForegroundColor Yellow
 } else {
     Write-Host "== [2/4] Python tool dump (wrg_devguard.secrets) ==" -ForegroundColor Cyan
