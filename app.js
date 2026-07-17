@@ -209,6 +209,23 @@ function init() {
     // directory recursion. Individual file drops still work everywhere.
     if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
   });
+
+  // Theme toggle. The inline <head> script already set the initial
+  // data-theme (localStorage, else OS preference) before first paint;
+  // this just flips it and persists the explicit choice.
+  const themeBtn = $("theme-toggle");
+  if (themeBtn) {
+    themeBtn.addEventListener("click", () => {
+      const root = document.documentElement;
+      const next = root.dataset.theme === "light" ? "dark" : "light";
+      root.dataset.theme = next;
+      try {
+        localStorage.setItem("devguard-scan-theme", next);
+      } catch {
+        /* storage disabled (private browsing, etc.) — theme still applies for this session */
+      }
+    });
+  }
 }
 
 if (document.readyState === "loading") {

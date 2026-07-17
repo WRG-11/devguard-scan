@@ -1,0 +1,74 @@
+name: 'devguard-scan'
+description: >-
+  Zero-dependency secret scanner (same engine as the devguard-scan browser
+  demo, github.com/WRG-11/devguard-scan) -- run against a checked-out repo
+  as a CI gate.
+author: 'WRG-11'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  path:
+    description: 'Directory to scan, relative to the calling workflow checkout'
+    required: false
+    default: '.'
+  include:
+    description: 'Comma-separated include glob patterns (overrides the built-in list)'
+    required: false
+    default: ''
+  exclude:
+    description: 'Comma-separated exclude glob patterns (overrides the built-in list)'
+    required: false
+    default: ''
+
+outputs:
+  total-findings:
+    description: 'Total finding count'
+    value: ${{ steps.scan.outputs.total-findings }}
+  error-count:
+    description: 'ERROR-severity finding count'
+    value: ${{ steps.scan.outputs.error-count }}
+  status:
+    description: '"PASS" or "FAIL"'
+    value: ${{ steps.scan.outputs.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: '20'
+
+    - name: Run devguard-scan
+      id: scan
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        SCAN_INCLUDE: ${{ inputs.include }}
+        SCAN_EXCLUDE: ${{ inputs.exclude }}
+      run: |
+        set +e
+        ARGS=("$SCAN_PATH" "--json")
+        [ -n "$SCAN_INCLUDE" ] && ARGS+=("--include" "$SCAN_INCLUDE")
+        [ -n "$SCAN_EXCLUDE" ] && ARGS+=("--exclude" "$SCAN_EXCLUDE")
+        node "${{ github.action_path }}/bin/scan.mjs" "${ARGS[@]}" > devguard-scan-report.json
+        SCAN_EXIT=$?
+        set -e
+
+        node -e "
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('devguard-scan-report.json', 'utf-8'));
+          const lines = [
+            \`total-findings=\${r.summary.total_findings}\`,
+            \`error-count=\${r.summary.error}\`,
+            \`status=\${r.status}\`,
+          ];
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, lines.join('\n') + '\n');
+          console.log(\`devguard-scan: \${r.summary.total_findings} finding(s) (\${r.summary.error} error, \${r.summary.warning} warning) -- \${r.status}\`);
+          for (const f of r.findings) {
+            console.log(\`  \${f.severity.padEnd(7)} \${f.file}:\${f.line}:\${f.column}  \${f.rule_id}  \${f.message}\`);
+          }
+        "
+        exit $SCAN_EXIT
