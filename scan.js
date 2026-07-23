@@ -150,43 +150,115 @@ export const DEFAULT_EXCLUDE = [
 
 export const MAX_FILE_BYTES = 1_048_576; // secrets.py default max_file_bytes
 
-// --- fnmatch.translate equivalent ------------------------------------------
-// Mirrors Python fnmatch: '*' -> '.*' (crosses '/'), '?' -> '.', '[...]' class,
-// everything else escaped; full-string (anchored) match, DOTALL.
-const _RE_SPECIAL = /[.+^${}()|\\]/g; // chars to escape outside a char class
+// --- fnmatch.fnmatchcase equivalent ----------------------------------------
+// Mirrors Python fnmatch: '*' matches any run INCLUDING '/', '?' any single
+// char, '[...]' a character class; everything else is literal, and the match is
+// anchored to the whole string.
+//
+// Matched directly rather than by building a RegExp from the pattern. The
+// pattern is untrusted -- include/exclude arrive from the command line (and the
+// GitHub Action's inputs), and an allowlist rule's `file` glob is read from
+// <scanned-dir>/.wrg/allowlist.json, i.e. out of the very repository being
+// scanned. Translating that to `^(?:...)$` turned each '*' into '.*', and a
+// 22-character pattern of alternating stars backtracked long enough to hang the
+// scan indefinitely (measured: 6 chars 0.2ms, 14 chars 237ms, 22 chars >25s --
+// a scanner that a scanned repo can silence by supplying one glob). This
+// two-pointer walk is O(len(str) x len(pattern)) with no backtracking blowup.
+//
+// Rewriting the translation also fixed two divergences from the Python contract
+// this file is a port of, both found by differential-testing 2576 pattern/path
+// pairs against fnmatchcase:
+//   [^abc]  '^' is a LITERAL member in fnmatch (the set is {^,a,b,c}); only '!'
+//           negates. Translating to a RegExp class made '^' negate, inverting
+//           the result for every such pattern.
+//   []]     a ']' in first position is a member, not the terminator. That was
+//           parsed correctly but emitted as the RegExp class "[]]", which in
+//           JavaScript is an EMPTY class followed by a literal ']' -- matching
+//           nothing, where Python matches ']'.
 
-function fnmatchToRegExp(pattern) {
-  let out = "";
-  let i = 0;
-  const n = pattern.length;
-  while (i < n) {
-    const c = pattern[i];
-    if (c === "*") {
-      out += ".*";
-      i++;
-    } else if (c === "?") {
-      out += ".";
-      i++;
-    } else if (c === "[") {
-      let j = i + 1;
-      if (j < n && (pattern[j] === "!" || pattern[j] === "^")) j++;
-      if (j < n && pattern[j] === "]") j++;
-      while (j < n && pattern[j] !== "]") j++;
-      if (j >= n) {
-        out += "\\["; // unterminated class -> literal '['
-        i++;
-      } else {
-        let stuff = pattern.slice(i + 1, j).replace(/\\/g, "\\\\");
-        if (stuff[0] === "!") stuff = "^" + stuff.slice(1);
-        out += "[" + stuff + "]";
-        i = j + 1;
-      }
-    } else {
-      out += c.replace(_RE_SPECIAL, "\\$&");
-      i++;
-    }
+// Parse a '[...]' class at pat[i] === '['. Returns null when unterminated, in
+// which case the caller treats '[' as a literal (fnmatch does the same).
+function parseCharClass(pat, i) {
+  const n = pat.length;
+  let j = i + 1;
+  let negated = false;
+  if (j < n && pat[j] === "!") {
+    negated = true;
+    j++;
   }
-  return new RegExp("^(?:" + out + ")$", "s");
+  const start = j;
+  if (j < n && pat[j] === "]") j++; // leading ']' is a member, not the close
+  while (j < n && pat[j] !== "]") j++;
+  if (j >= n) return null;
+  return { end: j + 1, negated, body: pat.slice(start, j) };
+}
+
+// Membership within a parsed class body. 'a-c' is a range; a '-' that is first
+// or last is a literal. No backslash escaping -- fnmatch gives '\' no special
+// meaning inside a class.
+function classContains(body, ch) {
+  for (let k = 0; k < body.length; k++) {
+    if (body[k + 1] === "-" && k + 2 < body.length) {
+      if (ch >= body[k] && ch <= body[k + 2]) return true;
+      k += 2;
+      continue;
+    }
+    if (body[k] === ch) return true;
+  }
+  return false;
+}
+
+function fnmatchTest(str, pattern) {
+  const n = str.length;
+  const m = pattern.length;
+  let si = 0;
+  let pi = 0;
+  let starPi = -1; // pattern index of the last '*' seen
+  let starSi = 0; // string index it was matched against
+  while (si < n) {
+    if (pi < m) {
+      const c = pattern[pi];
+      if (c === "*") {
+        starPi = pi;
+        starSi = si;
+        pi++;
+        continue;
+      }
+      if (c === "?") {
+        pi++;
+        si++;
+        continue;
+      }
+      if (c === "[") {
+        const cls = parseCharClass(pattern, pi);
+        if (cls) {
+          if (classContains(cls.body, str[si]) !== cls.negated) {
+            pi = cls.end;
+            si++;
+            continue;
+          }
+        } else if (str[si] === "[") {
+          pi++;
+          si++;
+          continue;
+        }
+      } else if (c === str[si]) {
+        pi++;
+        si++;
+        continue;
+      }
+    }
+    // no match here: give the last '*' one more character, else fail
+    if (starPi >= 0) {
+      starSi++;
+      si = starSi;
+      pi = starPi + 1;
+      continue;
+    }
+    return false;
+  }
+  while (pi < m && pattern[pi] === "*") pi++;
+  return pi === m;
 }
 
 // PurePosixPath.match equivalent (relative pattern → match from the right,
@@ -199,7 +271,7 @@ function pathlibMatch(path, pattern) {
   for (let k = 1; k <= patParts.length; k++) {
     const pat = patParts[patParts.length - k];
     const seg = pathParts[pathParts.length - k];
-    if (!fnmatchToRegExp(pat).test(seg)) return false;
+    if (!fnmatchTest(seg, pat)) return false;
   }
   return true;
 }
@@ -207,7 +279,7 @@ function pathlibMatch(path, pattern) {
 // --- match_any — verbatim port of common.py:34-44 --------------------------
 export function matchAny(path, patterns) {
   for (const pattern of patterns) {
-    if (fnmatchToRegExp(pattern).test(path)) return true; // fnmatch.fnmatch(path, pattern)
+    if (fnmatchTest(path, pattern)) return true; // fnmatch.fnmatch(path, pattern)
     if (pathlibMatch(path, pattern)) return true; // pp.match(pattern)
     if (pattern.startsWith("**/") && pathlibMatch(path, pattern.slice(3))) {
       return true; // pp.match(pattern[3:])
@@ -306,7 +378,7 @@ export function findingMatchesRule(finding, rule) {
   if (
     typeof filePattern === "string" &&
     filePattern.trim() &&
-    !fnmatchToRegExp(filePattern.trim()).test(finding.file) // fnmatch.fnmatch(finding.file, file_pattern)
+    !fnmatchTest(finding.file, filePattern.trim()) // fnmatch.fnmatch(finding.file, file_pattern)
   ) {
     return false;
   }
