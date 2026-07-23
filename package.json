@@ -9,6 +9,9 @@
   },
   "scripts": {
     "parity": "node scripts/js_reference_dump.mjs",
+    "glob-corpus": "python scripts/glob_corpus.py glob_corpus.json",
+    "glob-parity": "node scripts/glob_parity_check.mjs glob_corpus.json",
+    "smoke": "node scripts/cli_smoke.mjs",
     "scan": "node bin/scan.mjs"
   }
 }

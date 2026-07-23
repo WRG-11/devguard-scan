@@ -10,7 +10,15 @@
 // logic to drift out of parity. The only hardcoded shortcut is skipping
 // .git/ during the walk (always excluded anyway; its object store is large
 // and irrelevant, so there's no correctness cost to skipping the descent).
-import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  fstatSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+} from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -97,13 +105,25 @@ export function runScan({ root, include, exclude, allowlistRules } = {}) {
 
   const files = [];
   for (const full of allPaths) {
+    // Size-check and read the SAME open handle rather than the path twice.
+    // stat(path) followed by readFile(path) is a time-of-check/time-of-use gap:
+    // the file the guard measured need not be the file that is then read, so a
+    // path that grows (or is swapped) in between is read past MAX_FILE_BYTES --
+    // the one limit standing between the scanner and loading an arbitrarily
+    // large file into memory. fstat on the descriptor closes the gap by
+    // construction: it measures the object already opened.
+    let fd;
     try {
-      const st = statSync(full);
+      fd = openSync(full, "r");
+      const st = fstatSync(fd);
       if (st.size > MAX_FILE_BYTES) continue; // mirrors read_text_safely's size guard
-      const text = readFileSync(full, "utf-8");
+      const text = readFileSync(fd, "utf-8");
       files.push({ path: relative(root, full), text });
     } catch {
       /* vanished mid-scan / unreadable / binary -- skip, matches read_text_safely */
+    } finally {
+      // readFileSync(fd) does not close a caller-supplied descriptor
+      if (fd !== undefined) closeSync(fd);
     }
   }
 
