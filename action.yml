@@ -21,6 +21,15 @@ inputs:
     description: 'Comma-separated exclude glob patterns (overrides the built-in list)'
     required: false
     default: ''
+  allowlist:
+    description: >-
+      Path to an allowlist JSON, relative to the calling workflow checkout.
+      The gate NEVER auto-discovers <path>/.wrg/allowlist.json -- otherwise a
+      scanned fork PR could ship a rule that suppresses its own finding. Point
+      this at a file the workflow controls (e.g. one committed to the default
+      branch and checked out separately) to allow known findings on purpose.
+    required: false
+    default: ''
 
 outputs:
   total-findings:
@@ -48,11 +57,17 @@ runs:
         SCAN_PATH: ${{ inputs.path }}
         SCAN_INCLUDE: ${{ inputs.include }}
         SCAN_EXCLUDE: ${{ inputs.exclude }}
+        SCAN_ALLOWLIST: ${{ inputs.allowlist }}
       run: |
         set +e
-        ARGS=("$SCAN_PATH" "--json")
+        # --no-auto-allowlist unconditionally: as a gate this scans code it may
+        # not control, and <path>/.wrg/allowlist.json lives inside that code. An
+        # allowlist is honoured ONLY when the workflow points --allowlist at a
+        # file it owns.
+        ARGS=("$SCAN_PATH" "--json" "--no-auto-allowlist")
         [ -n "$SCAN_INCLUDE" ] && ARGS+=("--include" "$SCAN_INCLUDE")
         [ -n "$SCAN_EXCLUDE" ] && ARGS+=("--exclude" "$SCAN_EXCLUDE")
+        [ -n "$SCAN_ALLOWLIST" ] && ARGS+=("--allowlist" "$SCAN_ALLOWLIST")
         node "${{ github.action_path }}/bin/scan.mjs" "${ARGS[@]}" > devguard-scan-report.json
         SCAN_EXIT=$?
         set -e
