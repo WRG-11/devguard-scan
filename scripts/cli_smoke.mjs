@@ -73,6 +73,14 @@ checks["no allowlist -> suppressed is 0 (backward compatible)"] = noAllowlist.su
   checks["loadAllowlist: <root>/.wrg/allowlist.json default-discovery"] =
     loadedDefault.length === 1 && loadedDefault[0].rule_id === "stripe_secret_key";
 
+  // --no-auto-allowlist (autoDiscover=false): the in-tree .wrg/allowlist.json
+  // must be ignored, so a scanned repo cannot suppress its own findings when
+  // devguard-scan runs as a gate. An explicit --allowlist still works.
+  checks["loadAllowlist: auto-discovery off ignores in-tree .wrg/allowlist.json"] =
+    loadAllowlist(null, tmp, false).length === 0;
+  checks["loadAllowlist: auto-discovery off still honours explicit --allowlist"] =
+    loadAllowlist(explicitPath, tmp, false).length === 1;
+
   rmSync(tmp, { recursive: true, force: true });
 }
 

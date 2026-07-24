@@ -50,7 +50,10 @@ node bin/scan.mjs . --allowlist .wrg/allowlist.json    # suppress known-accepted
 
 An allowlist (auto-discovered at `<dir>/.wrg/allowlist.json` if present, same
 convention as the canonical CLI) suppresses matching findings instead of
-failing the scan on them:
+failing the scan on them. Pass `--no-auto-allowlist` to skip that in-tree
+discovery and honour only an explicit `--allowlist` — the GitHub Action does
+this unconditionally, since as a gate it scans code it may not control and the
+default file lives inside that code:
 
 ```json
 { "rules": [
