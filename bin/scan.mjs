@@ -43,6 +43,10 @@ Usage: node bin/scan.mjs [dir] [options]
                         if it exists). Same schema as the canonical CLI:
                         {"rules": [{"rule_id": "...", "file": "glob*",
                         "reason": "why"}]} -- unspecified fields are wildcards.
+  --no-auto-allowlist  do NOT auto-discover <dir>/.wrg/allowlist.json; use only
+                        an explicit --allowlist. Set this when scanning code you
+                        do not control (a CI gate over a fork PR) so the scanned
+                        tree cannot supply its own suppression rules.
   --json               print the full JSON report instead of a text summary
   -h, --help           show this help
 
@@ -52,22 +56,30 @@ the canonical wrg_devguard Python engine (see SECURITY.md).`);
 }
 
 function parseArgs(argv) {
-  const opts = { root: ".", include: null, exclude: null, allowlist: null, json: false, help: false };
+  const opts = { root: ".", include: null, exclude: null, allowlist: null, autoAllowlist: true, json: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "-h" || a === "--help") opts.help = true;
     else if (a === "--include") opts.include = argv[++i].split(",");
     else if (a === "--exclude") opts.exclude = argv[++i].split(",");
     else if (a === "--allowlist") opts.allowlist = argv[++i];
+    else if (a === "--no-auto-allowlist") opts.autoAllowlist = false;
     else if (a === "--json") opts.json = true;
     else opts.root = a;
   }
   return opts;
 }
 
-export function loadAllowlist(allowlistArg, root) {
-  const path = allowlistArg || join(root, ".wrg", "allowlist.json");
-  if (!existsSync(path)) return [];
+export function loadAllowlist(allowlistArg, root, autoDiscover = true) {
+  // An explicit --allowlist always wins. Otherwise fall back to
+  // <root>/.wrg/allowlist.json ONLY when auto-discovery is on. That default
+  // file lives inside the scanned tree, so a CI gate running over code it does
+  // not control (a fork PR) must pass --no-auto-allowlist: else the scanned
+  // repository could ship an allowlist rule that suppresses the very finding
+  // the gate exists to catch. When auto-discovery is off and no explicit path
+  // is given, there is simply no allowlist -- the safe default for a gate.
+  const path = allowlistArg || (autoDiscover ? join(root, ".wrg", "allowlist.json") : null);
+  if (!path || !existsSync(path)) return [];
   let payload;
   try {
     payload = JSON.parse(readFileSync(path, "utf-8"));
@@ -138,7 +150,7 @@ function main() {
     process.exit(0);
   }
 
-  const allowlistRules = loadAllowlist(opts.allowlist, opts.root);
+  const allowlistRules = loadAllowlist(opts.allowlist, opts.root, opts.autoAllowlist);
   const report = runScan({
     root: opts.root,
     include: opts.include,
