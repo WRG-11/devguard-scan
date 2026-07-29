@@ -7,8 +7,14 @@ finding-level parity. This helper calls the canonical detection library
 directly (the SAME code the CLI uses) and emits the envelope the JS engine
 produces, so browser-engine vs Python-tool can be diffed finding-for-finding.
 
-Usage (point PYTHONPATH at a checkout of the public WRG-11/wrg-devguard repo):
-  PYTHONPATH=<wrg-devguard-checkout>/src python py_reference_dump.py <root> <out.json>
+The canonical source is maintainer-only: it lives in a private monorepo and is
+not published as a standalone repo, so this script only runs for someone with
+that checkout. (An earlier version of this line pointed at a public
+"WRG-11/wrg-devguard" repository that does not exist -- the docs redaction pass
+that removed that name elsewhere missed this file.)
+
+Usage:
+  PYTHONPATH=<monorepo-checkout>/apps/wrg_devguard/src       python py_reference_dump.py <root> <out.json>
 """
 from __future__ import annotations
 
@@ -38,6 +44,15 @@ def main(argv: list[str]) -> int:
             "warning": warning,
             "suppressed": 0,
             "fail_on": "error",
+            # Null, not 0: scan_secrets does its own walk and does not report
+            # how many files it read, so these are genuinely not measured
+            # here. The JS dumper leaves them null too, which keeps the two
+            # summaries comparable field for field -- a measured number on one
+            # side and an invented 0 on the other would show up as a parity
+            # difference that belongs to the harness.
+            "files_scanned": None,
+            "skipped_oversize": None,
+            "skipped_unreadable": None,
         },
         "findings": [
             {
