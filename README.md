@@ -125,7 +125,7 @@ harness:
    `[REDACTED]` and never the raw value, that a dropped directory's nested
    files are picked up, and that an include-override reaches the scan.
 5. Runs a CLI smoke (`bin/scan.mjs`) proving the filesystem entrypoint finds
-   the same 9/9 corpus findings, honors `--exclude`/`--allowlist` overrides
+   the same 11/11 corpus findings, honors `--exclude`/`--allowlist` overrides
    (allowlist numbers cross-checked against the real `_apply_allowlist()`),
    and exits 0 on a clean directory.
 
@@ -133,9 +133,9 @@ harness:
 > for OPSEC, so parity is checked against the detection *library* directly via
 > `scripts/py_reference_dump.py` — the same code the CLI calls.
 
-**Last run:** 9/9 findings byte-identical across the 10-rule corpus, summary
-counts identical (6 ERROR + 3 WARNING); UI smoke PASS (13/13); CLI smoke
-PASS (14/14, including allowlist parity).
+**Last run:** 11/11 findings byte-identical across the 10-rule corpus, summary
+counts identical (7 ERROR + 4 WARNING); UI smoke PASS (13/13); CLI smoke
+PASS (21/21, including allowlist parity).
 
 ## Fixtures
 

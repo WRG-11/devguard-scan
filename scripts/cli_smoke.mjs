@@ -4,10 +4,10 @@
 // (parity_compare.py) -- this proves the Node/filesystem entrypoint wires
 // the same engine correctly: known-corpus findings, include/exclude
 // override, allowlist suppression, and a clean-directory PASS/exit-code
-// path. The allowlist numbers below (9 -> 5 active, 4 suppressed) were
-// cross-checked directly against the canonical wrg_devguard.cli
-// _apply_allowlist() with the identical rule set (2026-07-17) -- exact
-// match, including which 4 findings get suppressed.
+// path. The allowlist numbers below (11 -> 6 active, 5 suppressed) were
+// re-measured against the canonical wrg_devguard.cli _apply_allowlist()
+// with the identical rule set on 2026-07-29 -- exact match, including
+// which 5 findings get suppressed and that the 6 survivors are all ERROR.
 //
 // Usage: node scripts/cli_smoke.mjs   (exit 0 = pass)
 import { fileURLToPath } from "node:url";
@@ -23,17 +23,44 @@ const CLEAN_DIR = join(HERE, "..", "bin"); // no secrets in the CLI source itsel
 const checks = {};
 
 const full = runScan({ root: FIXTURES });
-checks["full fixtures scan finds 9"] = full.summary.total_findings === 9;
-checks["full fixtures scan: 6 error"] = full.summary.error === 6;
-checks["full fixtures scan: 3 warning"] = full.summary.warning === 3;
+checks["full fixtures scan finds 11"] = full.summary.total_findings === 11;
+checks["full fixtures scan: 7 error"] = full.summary.error === 7;
+checks["full fixtures scan: 4 warning"] = full.summary.warning === 4;
 checks["full fixtures scan status FAIL"] = full.status === "FAIL";
+
+// The two extensions the port was missing until 2026-07-29. Asserted by file
+// rather than only through the totals above, so a regression names itself
+// instead of surfacing as "expected 11, got 9".
+checks["**/*.env.* is scanned (app.env.local)"] = full.findings.some(
+  (f) => f.file === "app.env.local" && f.rule_id === "aws_access_key_id",
+);
+checks["**/*.cfg is scanned (settings.cfg)"] = full.findings.some(
+  (f) => f.file === "settings.cfg" && f.rule_id === "generic_secret_assignment",
+);
+
+// The leading-dot shape (`.env.local`, `.env.production`) is the one a real
+// leak actually wears, and it is exactly what `**/*.env` fails to match. It is
+// written at runtime instead of committed: a bare `.env*` rule in a user or
+// global gitignore is common enough that a committed fixture would silently
+// vanish from some clones -- and a fixture that disappears takes its assertion
+// with it, leaving a green run over a corpus missing the case it exists for.
+{
+  const tmp = mkdtempSync(join(tmpdir(), "devguard-scan-dotenv-"));
+  writeFileSync(join(tmp, ".env.local"), "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n");
+  writeFileSync(join(tmp, ".env.production"), "GH=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCD\n");
+  const dotenv = runScan({ root: tmp });
+  checks["dotfile .env.local is scanned"] = dotenv.findings.some((f) => f.file === ".env.local");
+  checks["dotfile .env.production is scanned"] = dotenv.findings.some((f) => f.file === ".env.production");
+  checks["dotfile env scan reports FAIL"] = dotenv.status === "FAIL";
+  rmSync(tmp, { recursive: true, force: true });
+}
 
 const excluded = runScan({
   root: FIXTURES,
   exclude: ["**/cloud_tokens.txt", "**/.git/**", "**/node_modules/**"],
 });
 checks["--exclude override drops cloud_tokens.txt findings"] =
-  excluded.summary.total_findings === 5 && !excluded.findings.some((f) => f.file.includes("cloud_tokens"));
+  excluded.summary.total_findings === 7 && !excluded.findings.some((f) => f.file.includes("cloud_tokens"));
 
 const clean = runScan({ root: CLEAN_DIR });
 checks["clean directory finds 0"] = clean.summary.total_findings === 0;
@@ -46,11 +73,12 @@ const allowlisted = runScan({
   allowlistRules: [
     { rule_id: "google_api_key", reason: "known test fixture, not a real key" },
     { file: "config.py", severity: "WARNING", reason: "reviewed, accepted risk" },
+    { file: "*.cfg", severity: "WARNING", reason: "reviewed, accepted risk" },
   ],
 });
-checks["allowlist suppresses 4 of 9 findings"] =
-  allowlisted.summary.total_findings === 5 && allowlisted.summary.suppressed === 4;
-checks["allowlist leaves only ERROR findings"] = allowlisted.summary.warning === 0 && allowlisted.summary.error === 5;
+checks["allowlist suppresses 5 of 11 findings"] =
+  allowlisted.summary.total_findings === 6 && allowlisted.summary.suppressed === 5;
+checks["allowlist leaves only ERROR findings"] = allowlisted.summary.warning === 0 && allowlisted.summary.error === 6;
 checks["allowlist: google_api_key fully suppressed"] = !allowlisted.findings.some((f) => f.rule_id === "google_api_key");
 
 const noAllowlist = runScan({ root: FIXTURES });

@@ -96,10 +96,23 @@ export const SECRET_RULES = [
   },
 ];
 
-// --- DEFAULT_INCLUDE — verbatim port of secrets.py:48-62 -------------------
+// --- DEFAULT_INCLUDE — verbatim port of secrets.py DEFAULT_INCLUDE ---------
+// `**/*.env.*` and `**/*.cfg` were added upstream after this port's last
+// hand-verification (2026-07-17) and were missing here until 2026-07-29. The
+// gap was not cosmetic: `**/*.env` does not match `.env.local`, so the two
+// highest-yield leak locations in a real tree -- `.env.local` / `.env.production`
+// and `setup.cfg` / `tox.cfg` -- were skipped outright by the browser demo, the
+// CLI and the Action alike. Measured on one directory before the fix:
+// canonical Python 3 findings (including an AWS key in .env.local), this
+// engine 1. The parity harness still reported ALL GREEN, because it compares
+// the two engines' OUTPUT over a fixture corpus that contained neither
+// extension -- see parity/contract.json + scripts/contract_check.mjs, which
+// compare the LISTS themselves and would have failed on day one.
 export const DEFAULT_INCLUDE = [
   "**/*.env",
+  "**/*.env.*",
   "**/*.ini",
+  "**/*.cfg",
   "**/*.json",
   "**/*.toml",
   "**/*.yaml",
