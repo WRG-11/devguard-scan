@@ -1,15 +1,21 @@
 name: Refresh README Metrics
 
-# Recompute source-of-truth counts from scan.js and update the
-# <!-- METRIC:name --> markers in README.md (Faz-1 self-stamp).
-# Public repo — GitHub Actions minutes are free.
+# Recompute the <!-- METRIC:name --> markers in README.md and commit any change.
+#
+# The computation lives in scripts/readme_stamp.mjs rather than inline here, so
+# the same command runs locally and as --check in the `docs` job of tests.yml.
+# It used to be `grep -c "^    id:" scan.js`, which counted a text shape rather
+# than a fact: reindenting the rule table would have changed the published rule
+# count without a rule changing.
+#
+# Triggers on any push to main, not only on scan.js: the stamped numbers now
+# include corpus findings and per-suite check counts, which move when fixtures/
+# or scripts/ move. Public repo — GitHub Actions minutes are free.
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - 'scan.js'
 
 permissions:
   contents: write
@@ -21,36 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Compute secret_rule_count
-        id: metrics
-        run: |
-          COUNT=$(grep -c "^    id:" scan.js)
-          echo "secret_rule_count=$COUNT" >> "$GITHUB_OUTPUT"
-          echo "secret_rule_count: $COUNT"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
 
-      - name: Update README.md markers
-        env:
-          RULE_COUNT: ${{ steps.metrics.outputs.secret_rule_count }}
-        run: |
-          python3 - <<'PYEOF'
-          import re, os
-
-          count = int(os.environ['RULE_COUNT'])
-
-          with open('README.md', 'r', encoding='utf-8') as f:
-              original = f.read()
-
-          pattern = r'<!-- METRIC:secret_rule_count -->.*?<!-- /METRIC:secret_rule_count -->'
-          replacement = f'<!-- METRIC:secret_rule_count -->{count}<!-- /METRIC:secret_rule_count -->'
-          updated = re.sub(pattern, replacement, original, flags=re.DOTALL)
-
-          if updated != original:
-              with open('README.md', 'w', encoding='utf-8', newline='\n') as f:
-                  f.write(updated)
-              print(f'README.md updated: secret_rule_count={count}')
-          else:
-              print(f'README.md already up-to-date: secret_rule_count={count}')
-          PYEOF
+      - name: Stamp metric markers
+        run: node scripts/readme_stamp.mjs --write
 
       - name: Commit and push if changed
         run: |
