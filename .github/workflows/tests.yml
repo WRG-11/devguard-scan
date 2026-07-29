@@ -79,7 +79,7 @@ jobs:
         with:
           node-version: '20'
 
-      - uses: actions/setup-python@e348410e00f449ece2581cf3d4d3ed02b09a4d5f # v6.0.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
