@@ -90,7 +90,7 @@ Or as a GitHub Action, in any repo:
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: WRG-11/devguard-scan@main
+- uses: WRG-11/devguard-scan@v0
   with:
     path: '.'              # optional, default '.'
     exclude: ''            # optional, comma-separated; overrides the built-in list
@@ -105,10 +105,10 @@ when `files-scanned` is `0`.
 `.github/workflows/self-scan.yml` in this repo runs the action against its
 own source as both a real CI gate and a working usage example.
 
-No version tags exist yet, so `@main` tracks a moving branch — pin to a commit
-SHA if you want stability. The next cut is staged as `v0.2.0` in the CHANGELOG,
-which also carries the exact release commands; once it lands, `@v0` becomes the
-ref to follow.
+`@v0` is a moving major tag: it follows the newest `v0.x` release, so you get
+fixes without opting into a breaking change. Pin `@v0.2.0` for a ref that never
+moves, or a commit SHA if you want the strictest guarantee. `@main` still works
+and is the least stable of the three.
 
 ## What it detects (<!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules — ported verbatim)
 
