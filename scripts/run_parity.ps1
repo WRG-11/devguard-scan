@@ -74,6 +74,10 @@ Invoke-Step '[5/8] Glob differential replay' {
     node (Join-Path $here 'scripts/glob_parity_check.mjs') $globCorpus
 }
 
+Invoke-Step '[6/8] CSP + no-network audit' {
+    node (Join-Path $here 'scripts/csp_check.mjs')
+}
+
 Invoke-Step '[6/8] UI-path smoke' {
     node (Join-Path $here 'scripts/ui_smoke.mjs')
 }

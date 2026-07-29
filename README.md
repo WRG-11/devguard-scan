@@ -12,10 +12,15 @@ Proof-of-concept — a "try-it-now" capability demo of the engine, not a product
 
 ## Why it's interesting
 
-- **0-byte upload.** All scanning runs in `scan.js` in your browser. There is no
-  `fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, analytics, or external
-  CDN anywhere in the source. Open the DevTools **Network** tab, scan a file,
-  and you will see **zero** requests after the initial page load.
+- **0-byte upload, enforced.** All scanning runs in `scan.js` in your browser.
+  There is no `fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, analytics,
+  or external CDN anywhere in the page's source — and the page ships a
+  `Content-Security-Policy` with `default-src 'none'; connect-src 'none'`, so
+  the browser refuses the request rather than the author promising not to make
+  one. Open the DevTools **Network** tab, scan a file, and you will see **zero**
+  requests after the initial page load. `scripts/csp_check.mjs` asserts both
+  halves in CI; `script-src` is `'self'` with no `'unsafe-inline'`, which is
+  why the theme initialiser lives in `theme.js` rather than inline.
 - **Secrets are never shown.** Every match is reported as `[REDACTED]`; the raw
   secret value never enters the results table, the DOM, or any payload (parity
   with `secrets.py:107`).
@@ -210,7 +215,8 @@ include/exclude/no-false-positive paths. No real credential is committed.
 ## Files
 
 ```
-index.html   static SPA (inline CSS, no CDN)
+index.html   static SPA (inline CSS, no CDN, strict CSP)
+theme.js     pre-paint theme init (external so script-src can stay 'self')
 app.js       UI glue (intake → scan → render); no network APIs
 scan.js      shared engine — runs in browser AND Node (single source of truth)
 bin/scan.mjs filesystem CLI over the same engine (see "Use it in CI")
@@ -219,6 +225,7 @@ package.json type:module (zero runtime deps)
 fixtures/    synthetic parity corpus
 parity/      contract.json — the canonical rule/glob lists, generated upstream
 scripts/     contract_check.mjs · contract_selftest.mjs · contract_digest.mjs
+             csp_check.mjs · readme_stamp.mjs
              js_reference_dump.mjs · py_reference_dump.py · parity_compare.py
              glob_corpus.py · glob_parity_check.mjs
              ui_smoke.mjs · cli_smoke.mjs · exit_code_smoke.mjs

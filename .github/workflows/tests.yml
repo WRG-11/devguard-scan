@@ -54,6 +54,9 @@ jobs:
       - name: Contract check self-test (prove the checker fails when it should)
         run: node scripts/contract_selftest.mjs
 
+      - name: CSP + no-network audit
+        run: node scripts/csp_check.mjs
+
       - name: UI-path smoke
         run: node scripts/ui_smoke.mjs
 

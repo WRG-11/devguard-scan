@@ -14,11 +14,12 @@
     "glob-corpus": "python scripts/glob_corpus.py glob_corpus.json",
     "glob-parity": "node scripts/glob_parity_check.mjs glob_corpus.json",
     "smoke": "node scripts/cli_smoke.mjs",
+    "csp": "node scripts/csp_check.mjs",
     "smoke-ui": "node scripts/ui_smoke.mjs",
     "smoke-exit": "node scripts/exit_code_smoke.mjs",
     "eol": "node scripts/eol_check.mjs",
     "stamp": "node scripts/readme_stamp.mjs --write",
-    "test": "node scripts/contract_check.mjs && node scripts/contract_selftest.mjs && node scripts/ui_smoke.mjs && node scripts/cli_smoke.mjs && node scripts/exit_code_smoke.mjs && node scripts/eol_check.mjs && node scripts/readme_stamp.mjs --check",
+    "test": "node scripts/contract_check.mjs && node scripts/contract_selftest.mjs && node scripts/csp_check.mjs && node scripts/ui_smoke.mjs && node scripts/cli_smoke.mjs && node scripts/exit_code_smoke.mjs && node scripts/eol_check.mjs && node scripts/readme_stamp.mjs --check",
     "scan": "node bin/scan.mjs"
   }
 }
