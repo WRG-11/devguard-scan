@@ -1,0 +1,113 @@
+name: tests
+
+# The repository's own test harness, running in CI.
+#
+# Until 2026-07-29 nothing here ran it. The three workflows that existed
+# (codeql, self-scan, refresh-readme-metrics) were all green, and the README
+# advertised "UI smoke PASS (13/13); CLI smoke PASS" -- numbers that were only
+# ever produced by a maintainer running scripts/run_parity.ps1 by hand on a
+# Windows box. A test suite nobody runs is documentation.
+#
+# The Python-vs-JS parity leg still cannot run here: it needs the canonical
+# wrg_devguard source, which is not public. Everything that does NOT need it
+# runs on every push -- including the contract check, which compares this
+# engine's rule and glob lists against the canonical contract file and is
+# precisely the leg that would have caught the divergence the corpus-based
+# harness missed for eight days.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly: this repo has no dependencies to rot, but the canonical contract
+    # can move without anything in this repo changing, and a scheduled run is
+    # the only thing that notices a divergence nobody pushed.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: smoke + contract (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is what action.yml pins for consumers; 22/24 are the current LTS
+        # and current release. The engine is dependency-free ES, so the matrix
+        # is about the runtime, not a lockfile.
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Contract check (engine vs canonical rule/glob lists)
+        run: node scripts/contract_check.mjs
+
+      - name: Contract check self-test (prove the checker fails when it should)
+        run: node scripts/contract_selftest.mjs
+
+      - name: CSP + no-network audit
+        run: node scripts/csp_check.mjs
+
+      - name: UI-path smoke
+        run: node scripts/ui_smoke.mjs
+
+      - name: CLI smoke
+        run: node scripts/cli_smoke.mjs
+
+      - name: CLI exit codes
+        # Exercises the real process boundary rather than the exported
+        # functions: a gate is only as good as the exit code it hands back,
+        # and that code comes from main(), which no in-process test touches.
+        run: node scripts/exit_code_smoke.mjs
+
+  glob-parity:
+    name: glob differential vs CPython fnmatch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Generate the oracle corpus
+        # glob_corpus.json is generated, not committed (.gitignore), so this
+        # differential check could not run anywhere but a developer's machine.
+        # The generator is CPython stdlib only -- no monorepo access needed,
+        # because Python's own fnmatch/pathlib IS the contract being ported.
+        run: python scripts/glob_corpus.py glob_corpus.json
+
+      - name: Replay the corpus against the JS matcher
+        run: node scripts/glob_parity_check.mjs glob_corpus.json
+
+  hygiene:
+    name: docs + line endings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: README metric markers are current
+        # --check, not --write: on a pull request the refresh workflow has not
+        # run yet, and a README claiming counts nobody measured is the failure
+        # this stamper exists to remove.
+        run: node scripts/readme_stamp.mjs --check
+
+      - name: Index EOLs are LF
+        run: node scripts/eol_check.mjs

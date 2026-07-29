@@ -3,19 +3,100 @@
 All notable changes to `devguard-scan` (devguard-in-browser) are documented
 here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-> **Versioning note:** this is a static, client-side browser demo (no build
-> step, no published artifact). The current in-tree version is `0.1.0`
-> (`package.json`); there are no Git tags or GitHub releases yet, so the
-> `[0.1.0]` entry below is seeded from the repository history. This is an
-> intentionally minimal CHANGELOG for a single-version POC.
+> **Versioning note:** the in-tree version is `0.2.0` (`package.json`). There
+> are still no Git tags or GitHub releases: the `[0.1.0]` entry below was
+> seeded from repository history, and `[Unreleased]` is staged to be cut as
+> `v0.2.0`. Until a tag exists, `uses: WRG-11/devguard-scan@main` tracks a
+> moving branch -- pin to a commit SHA if you need stability. Cutting the tag
+> is a maintainer action; see "Releasing" at the end of this file.
 
 ## [Unreleased]
 
-Documentation and CI maintenance after the initial `0.1.0` cut, two real UI
-fixes, and two usability upgrades (allowlist support, CLI/Action); no change
-to the 10 detection rules themselves.
+Staged as `0.2.0`. Two rounds of work: the `0.1.0` follow-ups (allowlist, CLI,
+Action, UI fixes), and then a parity/measurement round that found the port had
+silently stopped scanning `.env.local` and `.cfg` files.
 
-### Added
+### Fixed -- detection
+
+- **`DEFAULT_INCLUDE` parity: `**/*.env.*` and `**/*.cfg` were missing.** The
+  canonical `secrets.py` gained both on 2026-07-21; this port last
+  hand-verified parity on 2026-07-17 and never picked them up. `**/*.env` does
+  not match a suffixed env file, so `.env.local` / `.env.production` and
+  `setup.cfg` / `tox.cfg` -- the two places a leak most often sits -- were
+  skipped by the browser demo, the CLI and the Action alike. Measured on one
+  directory before the fix: canonical Python 3 findings including an AWS key in
+  `.env.local`, this engine 1. The live GitHub Pages copy carried the same gap.
+- **Columns are counted in code points, not UTF-16 units.** `RegExp.exec`
+  returns a UTF-16 offset and Python's `match.start()` a code-point offset, so
+  any character outside the BMP before a match made this engine report a column
+  two higher than the canonical tool for the same finding. Previously
+  documented as a known divergence and left alone because the corpus is ASCII;
+  the corpus is not the input.
+
+### Fixed -- the gate itself
+
+- **A misconfigured scan reported a clean tree.** `node bin/scan.mjs ./typo`
+  walked a directory that does not exist, found nothing and exited `0`; a
+  mistyped flag such as `--jsonn` was silently taken as the directory to scan,
+  with the same result; a flag missing its value died with a raw `TypeError`
+  stack trace. As a CI gate the first two are the dangerous ones -- a typo in
+  the Action's `path:` input buys a permanently green check. Added exit code
+  `2` for "the scan did not run", and the Action now fails the step on it
+  explicitly instead of parsing an absent report.
+- Reports carry `files_scanned`, `skipped_oversize` and `skipped_unreadable`.
+  "0 findings" and "0 files matched the include list" used to be the same
+  output. The fields are `null` rather than `0` when not measured, so
+  "unmeasured" stays distinguishable from "measured, and it was zero".
+- `scripts/js_reference_dump.mjs` now mirrors `read_text_safely`: an unreadable
+  directory or a file vanishing mid-walk no longer aborts the dump, and a file
+  over the size cap is skipped rather than read and scanned -- the harness must
+  not diverge from the engine it measures.
+
+### Added -- so it cannot drift again
+
+- **`parity/contract.json` + `scripts/contract_check.mjs`.** Parity was checked
+  by scanning `fixtures/` with both engines and diffing the findings, which is
+  exactly as good as the corpus: it printed ALL GREEN for eight days over the
+  include-list gap above, because `fixtures/` contained neither extension. The
+  contract file carries the canonical rule ids, regex sources, severities,
+  messages, both glob lists and the size cap, sealed with a sha256 so it cannot
+  be hand-edited to match the code. Comparing lists needs no Python and no
+  access to the private canonical source, so unlike the parity harness it runs
+  in CI on every push.
+- **`scripts/contract_selftest.mjs`** -- ten deliberately broken contracts that
+  must each be caught with a message naming the problem, plus the real one,
+  which must still pass. A guard that has only ever been seen to pass is an
+  assumption.
+- **`.github/workflows/tests.yml`** -- the repository's own suite, in CI, for
+  the first time. Contract check, self-test, CSP audit, UI smoke, CLI smoke,
+  exit codes (node 20/22/24), the glob differential, EOL and README-marker
+  checks; weekly as well as on push, since the canonical contract can move
+  without anything here changing.
+- The glob differential could not have run in CI regardless: its oracle corpus
+  is gitignored. It is now generated in the job -- `glob_corpus.py` is CPython
+  stdlib only, because Python's own `fnmatch`/`pathlib` *is* the contract being
+  ported. 2950 cases, 0 mismatches.
+- **`scripts/exit_code_smoke.mjs`** -- covers what `cli_smoke` cannot: it
+  imports the functions, so it never executes `main()`, where the exit code
+  that CI actually consumes is produced.
+- **`scripts/csp_check.mjs` + a strict `Content-Security-Policy`.** The 0-byte
+  upload claim was true and verified by reading, which does not survive the
+  next edit. `index.html` now ships `default-src 'none'; connect-src 'none'`,
+  so a request is refused by the browser instead of being trusted not to
+  happen. `script-src 'self'` with no `'unsafe-inline'` also closes inline
+  event handlers, the realistic XSS shape for a page that renders
+  attacker-chosen file names; that required moving the pre-paint theme
+  initialiser into `theme.js`.
+- **`scripts/readme_stamp.mjs`** -- ten measured metrics stamped into README
+  markers, `--check` in CI. "Last run: 9/9 findings ... CLI smoke PASS (14/14)"
+  was hand-maintained prose and was wrong within an afternoon of edits.
+- **`--max-file-bytes`** on the CLI and the Action. The engine already
+  supported the option; nothing exposed it.
+- **`.gitattributes` + `scripts/eol_check.mjs`.** The index stored `README.md`
+  and `run_parity.ps1` as CRLF and everything else as LF, so an edit from a
+  tool with different defaults rewrote every line and buried the real change.
+
+### Added -- earlier in this cycle
 
 - **Allowlist support** (`scan.js`: `findingMatchesRule`/`applyAllowlist`;
   `bin/scan.mjs`: `--allowlist <path>`, auto-discovers `<dir>/.wrg/
@@ -130,3 +211,27 @@ single byte leaving the browser** — a static, dependency-free port of the
 
 - Positioned as a "try-it-now" capability demo of the detection engine, not a
   product.
+
+---
+
+## Releasing
+
+There are no tags yet, so `@main` is the only usable ref and it moves. Cutting
+`v0.2.0` needs push rights, so it is a maintainer action and deliberately not
+automated:
+
+```bash
+# from a clean main, with CI green
+git tag -a v0.2.0 -m "devguard-scan 0.2.0"
+git push origin v0.2.0
+
+# Actions convention: a moving major tag consumers can follow
+git tag -f v0 v0.2.0
+git push -f origin v0
+
+gh release create v0.2.0 --title "devguard-scan 0.2.0" --notes-from-tag
+```
+
+Once `v0` exists, the README and `action.yml` usage examples should move from
+`@main` to `@v0`. Until then the honest advice for a consumer is `@main` for
+convenience or a commit SHA for stability, which is what the README says.

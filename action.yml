@@ -30,6 +30,13 @@ inputs:
       branch and checked out separately) to allow known findings on purpose.
     required: false
     default: ''
+  max-file-bytes:
+    description: >-
+      Skip files larger than this many bytes (default 1048576). Files skipped
+      for size are reported in the files-scanned/skipped-oversize outputs, so
+      raising or lowering this never silently changes what was examined.
+    required: false
+    default: ''
 
 outputs:
   total-findings:
@@ -41,6 +48,15 @@ outputs:
   status:
     description: '"PASS" or "FAIL"'
     value: ${{ steps.scan.outputs.status }}
+  files-scanned:
+    description: >-
+      How many files were actually read. A gate that reports 0 findings over 0
+      files is misconfigured, not clean -- assert on this in the calling
+      workflow if the scanned path is generated rather than fixed.
+    value: ${{ steps.scan.outputs.files-scanned }}
+  skipped-oversize:
+    description: 'Files skipped because they exceed max-file-bytes'
+    value: ${{ steps.scan.outputs.skipped-oversize }}
 
 runs:
   using: 'composite'
@@ -58,6 +74,7 @@ runs:
         SCAN_INCLUDE: ${{ inputs.include }}
         SCAN_EXCLUDE: ${{ inputs.exclude }}
         SCAN_ALLOWLIST: ${{ inputs.allowlist }}
+        SCAN_MAX_FILE_BYTES: ${{ inputs.max-file-bytes }}
       run: |
         set +e
         # --no-auto-allowlist unconditionally: as a gate this scans code it may
@@ -68,20 +85,37 @@ runs:
         [ -n "$SCAN_INCLUDE" ] && ARGS+=("--include" "$SCAN_INCLUDE")
         [ -n "$SCAN_EXCLUDE" ] && ARGS+=("--exclude" "$SCAN_EXCLUDE")
         [ -n "$SCAN_ALLOWLIST" ] && ARGS+=("--allowlist" "$SCAN_ALLOWLIST")
+        [ -n "$SCAN_MAX_FILE_BYTES" ] && ARGS+=("--max-file-bytes" "$SCAN_MAX_FILE_BYTES")
         node "${{ github.action_path }}/bin/scan.mjs" "${ARGS[@]}" > devguard-scan-report.json
         SCAN_EXIT=$?
         set -e
 
+        # Exit 2 means the scan never ran (missing path, bad input): there is no
+        # report to parse, and treating it as anything other than a failure is
+        # how a typo'd `path:` buys a permanently green check. Fail here rather
+        # than letting the reader below die on an empty file with a JSON parse
+        # error that says nothing about the cause.
+        if [ "$SCAN_EXIT" -ne 0 ] && [ "$SCAN_EXIT" -ne 1 ]; then
+          echo "::error::devguard-scan could not run (exit $SCAN_EXIT) -- see the message above. The scan did NOT pass; it did not happen."
+          exit "$SCAN_EXIT"
+        fi
+
         node -e "
           const fs = require('fs');
           const r = JSON.parse(fs.readFileSync('devguard-scan-report.json', 'utf-8'));
+          const s = r.summary;
           const lines = [
-            \`total-findings=\${r.summary.total_findings}\`,
-            \`error-count=\${r.summary.error}\`,
+            \`total-findings=\${s.total_findings}\`,
+            \`error-count=\${s.error}\`,
             \`status=\${r.status}\`,
+            \`files-scanned=\${s.files_scanned}\`,
+            \`skipped-oversize=\${s.skipped_oversize}\`,
           ];
           fs.appendFileSync(process.env.GITHUB_OUTPUT, lines.join('\n') + '\n');
-          console.log(\`devguard-scan: \${r.summary.total_findings} finding(s) (\${r.summary.error} error, \${r.summary.warning} warning) -- \${r.status}\`);
+          console.log(\`devguard-scan: \${s.total_findings} finding(s) (\${s.error} error, \${s.warning} warning) over \${s.files_scanned} file(s) -- \${r.status}\`);
+          if (s.files_scanned === 0) {
+            console.log('::warning::devguard-scan read 0 files. A clean result over an empty file set is not evidence of anything -- check the path and include patterns.');
+          }
           for (const f of r.findings) {
             console.log(\`  \${f.severity.padEnd(7)} \${f.file}:\${f.line}:\${f.column}  \${f.rule_id}  \${f.message}\`);
           }

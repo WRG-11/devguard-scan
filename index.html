@@ -4,19 +4,32 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>devguard-in-browser — client-side secret scanner</title>
+    <!-- The 0-byte-upload claim, enforced by the browser rather than asserted
+         in the README. `connect-src 'none'` makes fetch / XMLHttpRequest /
+         WebSocket / EventSource / sendBeacon fail at the platform level, so
+         the guarantee no longer rests on nobody having added one; DevTools
+         shows the violation instead of a silent request.
+
+         default-src 'none' means anything not listed below is denied outright
+         -- there is no CDN, font, frame, worker or media to allow.
+         script-src 'self' with no 'unsafe-inline': the theme initialiser moved
+         to theme.js precisely so this could be closed, which also blocks
+         inline event handlers, the realistic XSS shape for a page that renders
+         attacker-chosen file names into a table.
+         style-src keeps 'unsafe-inline' for the single <style> block below;
+         no untrusted content reaches CSS.
+         img-src data: covers the inline favicon. form-action / base-uri 'none'
+         because the page has neither. frame-ancestors is deliberately absent:
+         it is ignored in a <meta> policy and would only print a console
+         warning that reads like a misconfiguration. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'"
+    />
     <!-- Inline data-URI favicon: no separate network request, no 404. -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%233fb950' d='M8 1l6 2v4c0 4-3 7-6 8-3-1-6-4-6-8V3z'/%3E%3C/svg%3E" />
     <!-- No external CDN, no fonts, no analytics: every byte is local. -->
-    <!-- Applied before first paint (inline, synchronous) to avoid a flash
-         of the wrong theme: localStorage preference wins, else OS setting. -->
-    <script>
-      (function () {
-        var saved = null;
-        try { saved = localStorage.getItem("devguard-scan-theme"); } catch (e) { /* storage disabled */ }
-        var theme = saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-        document.documentElement.dataset.theme = theme;
-      })();
-    </script>
+    <script src="theme.js"></script>
     <style>
       :root {
         --bg: #0d1117;

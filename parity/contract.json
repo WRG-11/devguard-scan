@@ -1,0 +1,121 @@
+{
+  "contract_version": 1,
+  "command": "scan-secrets",
+  "max_file_bytes": 1048576,
+  "python_compile_flags": [
+    "MULTILINE"
+  ],
+  "rules": [
+    {
+      "id": "openai_api_key",
+      "regex": "\\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\\b",
+      "severity": "ERROR",
+      "message": "Possible OpenAI API key found."
+    },
+    {
+      "id": "github_token",
+      "regex": "\\bgh[pousr]_[A-Za-z0-9]{36,255}\\b",
+      "severity": "ERROR",
+      "message": "Possible GitHub token found."
+    },
+    {
+      "id": "aws_access_key_id",
+      "regex": "\\bAKIA[0-9A-Z]{16}\\b",
+      "severity": "ERROR",
+      "message": "Possible AWS Access Key ID found."
+    },
+    {
+      "id": "slack_token",
+      "regex": "\\bxox[baprs]-[A-Za-z0-9-]{10,}\\b",
+      "severity": "ERROR",
+      "message": "Possible Slack token found."
+    },
+    {
+      "id": "private_key_block",
+      "regex": "-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
+      "severity": "ERROR",
+      "message": "Private key block found."
+    },
+    {
+      "id": "generic_secret_assignment",
+      "regex": "(?i)(api[_-]?key|access[_-]?token|secret|password)\\s*[:=]\\s*['\\\"][^'\\\"]{8,}['\\\"]",
+      "severity": "WARNING",
+      "message": "Potential hardcoded secret assignment."
+    },
+    {
+      "id": "google_api_key",
+      "regex": "\\bAIza[0-9A-Za-z_\\-]{35}\\b",
+      "severity": "ERROR",
+      "message": "Possible Google API key found."
+    },
+    {
+      "id": "stripe_secret_key",
+      "regex": "\\b(?:sk|rk)_live_[0-9A-Za-z]{24,}\\b",
+      "severity": "ERROR",
+      "message": "Possible Stripe live secret key found."
+    },
+    {
+      "id": "github_fine_grained_pat",
+      "regex": "\\bgithub_pat_[0-9A-Za-z_]{82}\\b",
+      "severity": "ERROR",
+      "message": "Possible GitHub fine-grained personal access token found."
+    },
+    {
+      "id": "slack_webhook_url",
+      "regex": "https://hooks\\.slack\\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]{24,}",
+      "severity": "ERROR",
+      "message": "Possible Slack incoming-webhook URL found."
+    }
+  ],
+  "include": [
+    "**/*.env",
+    "**/*.env.*",
+    "**/*.ini",
+    "**/*.cfg",
+    "**/*.json",
+    "**/*.toml",
+    "**/*.yaml",
+    "**/*.yml",
+    "**/*.txt",
+    "**/*.md",
+    "**/*.py",
+    "**/*.js",
+    "**/*.ts",
+    "**/*.sh",
+    "**/*.ps1"
+  ],
+  "exclude": [
+    "**/.git/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/node_modules/**",
+    "**/__pycache__/**",
+    "**/.pytest_cache/**",
+    "**/tests/**",
+    "**/testdata/**",
+    "**/fixtures/**",
+    "**/.tmp/**",
+    ".tmp/**",
+    "**/.tmp_pytest/**",
+    ".tmp_pytest/**",
+    "**/_tmp*/**",
+    "_tmp*/**",
+    "**/.cache/**",
+    "**/site-packages/**",
+    "**/.train_venv/**",
+    "**/data/**",
+    "**/runs/**",
+    "**/artifacts/**",
+    "artifacts/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.svg",
+    "**/*.ico",
+    "**/*.lock"
+  ],
+  "digest": "9d89994f93d3f3b50438644c320feb0a5986cc02391cc18ee08d0f7ebe51b38e"
+}
