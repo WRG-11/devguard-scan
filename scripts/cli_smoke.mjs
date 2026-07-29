@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { runScan, loadAllowlist } from "../bin/scan.mjs";
+import { runScan, loadAllowlist, parseArgs, assertScanRoot } from "../bin/scan.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, "..", "fixtures");
@@ -109,6 +109,64 @@ checks["no allowlist -> suppressed is 0 (backward compatible)"] = noAllowlist.su
   checks["loadAllowlist: auto-discovery off still honours explicit --allowlist"] =
     loadAllowlist(explicitPath, tmp, false).length === 1;
 
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// --- argument handling: every one of these used to end in a clean exit 0 or a
+// raw stack trace. A gate that cannot distinguish "nothing found" from "never
+// ran" is worse than no gate, because it reports the reassuring answer.
+function rejects(fn) {
+  try {
+    fn();
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+checks["parseArgs: unknown option is rejected"] = rejects(() => parseArgs([".", "--jsonn"]));
+checks["parseArgs: value flag with no value is rejected"] = rejects(() => parseArgs([".", "--exclude"]));
+checks["parseArgs: value flag followed by another flag is rejected"] =
+  rejects(() => parseArgs([".", "--exclude", "--json"]));
+checks["parseArgs: second positional is rejected"] = rejects(() => parseArgs(["a", "b"]));
+checks["parseArgs: non-integer --max-file-bytes is rejected"] =
+  rejects(() => parseArgs([".", "--max-file-bytes", "12abc"]));
+checks["parseArgs: zero --max-file-bytes is rejected"] = rejects(() => parseArgs([".", "--max-file-bytes", "0"]));
+checks["parseArgs: empty pattern list is rejected"] = rejects(() => parseArgs([".", "--exclude", " , "]));
+{
+  const parsed = parseArgs(["fixtures", "--json", "--max-file-bytes", "4096", "--exclude", "a,b"]);
+  checks["parseArgs: valid arguments still parse"] =
+    parsed.root === "fixtures" && parsed.json === true && parsed.maxFileBytes === 4096 && parsed.exclude.length === 2;
+  checks["parseArgs: default root is ."] = parseArgs([]).root === ".";
+}
+checks["assertScanRoot: missing directory is rejected"] = rejects(() => assertScanRoot(join(HERE, "no-such-dir")));
+checks["assertScanRoot: a file is not a directory"] = rejects(() => assertScanRoot(join(HERE, "cli_smoke.mjs")));
+checks["assertScanRoot: real directory passes"] = !rejects(() => assertScanRoot(FIXTURES));
+
+// --- counts: the report must say how much was actually looked at.
+{
+  const counted = runScan({ root: FIXTURES });
+  checks["report counts files scanned"] = counted.summary.files_scanned === 5;
+  checks["report counts oversize skips"] = counted.summary.skipped_oversize === 0;
+
+  // --max-file-bytes small enough to exclude everything: findings drop to zero
+  // while files_scanned stays 0 and skipped_oversize accounts for the corpus.
+  // Without those two fields this is byte-identical to scanning a clean tree.
+  const tiny = runScan({ root: FIXTURES, maxFileBytes: 1 });
+  checks["--max-file-bytes suppresses findings"] = tiny.summary.total_findings === 0;
+  checks["--max-file-bytes is visible in the report"] =
+    tiny.summary.files_scanned === 0 && tiny.summary.skipped_oversize === 5;
+  checks["a tree where nothing was read is distinguishable from a clean one"] =
+    tiny.summary.skipped_oversize !== clean.summary.skipped_oversize;
+
+  // An oversize file that the exclude list would have dropped anyway must not
+  // inflate the skipped-for-size count -- that number is a prompt to go look.
+  const tmp = mkdtempSync(join(tmpdir(), "devguard-scan-oversize-"));
+  mkdirSync(join(tmp, "node_modules"));
+  writeFileSync(join(tmp, "node_modules", "bundle.js"), "x".repeat(4096));
+  writeFileSync(join(tmp, "real.js"), "y".repeat(4096));
+  const mixed = runScan({ root: tmp, maxFileBytes: 1024 });
+  checks["excluded oversize files are not counted as size skips"] = mixed.summary.skipped_oversize === 1;
   rmSync(tmp, { recursive: true, force: true });
 }
 

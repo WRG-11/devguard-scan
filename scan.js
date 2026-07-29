@@ -347,24 +347,43 @@ export function scanText(text, file) {
 }
 
 // Scan a list of { path, text } records, applying include/exclude exactly as
-// scan_secrets (secrets.py:105-117): skip oversize, skip excluded, require an
-// include match. File-outer order mirrors the Python rglob loop.
-export function scanFiles(files, opts = {}) {
+// scan_secrets: skip excluded, require an include match, then skip oversize.
+// File-outer order mirrors the Python rglob loop.
+//
+// Returns counts alongside the findings. A scanner reports absence of evidence,
+// and absence of evidence is indistinguishable from "nothing was looked at" --
+// a tree where every candidate was skipped for size, or where the include list
+// matched nothing at all, produces exactly the same empty result as a clean
+// tree. `scanned` makes the difference visible to the caller.
+export function scanFilesDetailed(files, opts = {}) {
   const include = opts.include || DEFAULT_INCLUDE;
   const exclude = opts.exclude || DEFAULT_EXCLUDE;
   const maxBytes = opts.maxFileBytes || MAX_FILE_BYTES;
   const findings = [];
+  let scanned = 0;
+  let skippedOversize = 0;
   for (const { path, text } of files) {
     const rel = path.replace(/\\/g, "/");
-    if ((opts.byteSizes && opts.byteSizes[rel] > maxBytes) || byteLength(text) > maxBytes) {
-      continue; // read_text_safely returns "" for oversize -> skipped
-    }
+    // Order follows secrets.py: exclude, then include, then the size guard
+    // inside read_text_safely. Findings are identical whichever way round the
+    // size check goes, but the counts are not -- checking size first would
+    // report an excluded 5 MB node_modules bundle as "skipped for size".
     if (matchAny(rel, exclude)) continue;
     if (!matchAny(rel, include)) continue;
+    if ((opts.byteSizes && opts.byteSizes[rel] > maxBytes) || byteLength(text) > maxBytes) {
+      skippedOversize++; // read_text_safely returns "" for oversize -> skipped
+      continue;
+    }
+    scanned++;
     if (!text) continue;
     for (const f of scanText(text, rel)) findings.push(f);
   }
-  return findings;
+  return { findings, scanned, skippedOversize };
+}
+
+// Backward-compatible thin wrapper: findings only.
+export function scanFiles(files, opts = {}) {
+  return scanFilesDetailed(files, opts).findings;
 }
 
 // --- allowlist — verbatim port of cli.py's _finding_matches_rule /
@@ -427,9 +446,17 @@ export function applyAllowlist(findings, allowlistRules) {
 }
 
 // Build the same JSON envelope as the parity reference dumper.
-export function buildReport(findings, scanRoot = ".", suppressedCount = 0) {
+//
+// `stats` adds files_scanned / skipped_oversize / skipped_unreadable to the
+// summary. These are additive fields: every previously-valid consumer keeps
+// working, and a report that says `"files_scanned": 0` no longer looks like a
+// clean tree. They default to null (not 0) when the caller does not supply
+// them, so "not measured" stays distinguishable from "measured, and it was
+// zero" -- reporting an unmeasured 0 would be the same lie in a new place.
+export function buildReport(findings, scanRoot = ".", suppressedCount = 0, stats = {}) {
   const error = findings.filter((f) => f.severity.toUpperCase() === "ERROR").length;
   const warning = findings.filter((f) => f.severity.toUpperCase() === "WARNING").length;
+  const num = (v) => (typeof v === "number" ? v : null);
   return {
     schema_version: "wrg_devguard.lib",
     command: "scan-secrets",
@@ -441,6 +468,9 @@ export function buildReport(findings, scanRoot = ".", suppressedCount = 0) {
       warning,
       suppressed: suppressedCount,
       fail_on: "error",
+      files_scanned: num(stats.scanned),
+      skipped_oversize: num(stats.skippedOversize),
+      skipped_unreadable: num(stats.skippedUnreadable),
     },
     findings,
   };

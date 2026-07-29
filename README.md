@@ -39,14 +39,28 @@ loads, you can disconnect from the network entirely — it keeps working.
 ## Use it in CI
 
 `scan.js` runs unchanged in Node, so the same engine is also a filesystem CLI
-(`bin/scan.mjs`) — exit code 1 on any ERROR-severity finding, 0 otherwise:
+(`bin/scan.mjs`):
 
 ```bash
 node bin/scan.mjs .                       # scan the current directory, text summary
 node bin/scan.mjs . --json                # full JSON report (same schema as the browser)
 node bin/scan.mjs . --exclude "**/dist/**,**/*.lock"   # override the built-in exclude list
 node bin/scan.mjs . --allowlist .wrg/allowlist.json    # suppress known-accepted findings
+node bin/scan.mjs . --max-file-bytes 262144            # lower the 1 MiB per-file cap
 ```
+
+| exit | meaning |
+|------|---------|
+| `0`  | scan ran, no ERROR-severity finding |
+| `1`  | scan ran, at least one ERROR-severity finding |
+| `2`  | **the scan did not run** — missing/unreadable scan root, unknown option, bad value |
+
+Exit `2` exists because the alternative is worse than no gate: `bin/scan.mjs`
+used to walk a non-existent directory, find nothing and exit `0`, so a typo in
+a CI `path:` bought a permanently green check. For the same reason an unknown
+option is now an error rather than being treated as the directory to scan, and
+every report carries `summary.files_scanned` — a clean result over zero files
+is not evidence of anything.
 
 An allowlist (auto-discovered at `<dir>/.wrg/allowlist.json` if present, same
 convention as the canonical CLI) suppresses matching findings instead of
@@ -73,9 +87,15 @@ Or as a GitHub Action, in any repo:
 - uses: actions/checkout@v7
 - uses: WRG-11/devguard-scan@main
   with:
-    path: '.'          # optional, default '.'
-    exclude: ''         # optional, comma-separated; overrides the built-in list
+    path: '.'              # optional, default '.'
+    exclude: ''            # optional, comma-separated; overrides the built-in list
+    max-file-bytes: ''     # optional, default 1048576
 ```
+
+Outputs: `total-findings`, `error-count`, `status`, `files-scanned`,
+`skipped-oversize`. The action fails the step on exit `2` with an explicit
+`::error::` rather than parsing an absent report, and emits a `::warning::`
+when `files-scanned` is `0`.
 
 `.github/workflows/self-scan.yml` in this repo runs the action against its
 own source as both a real CI gate and a working usage example. No version
