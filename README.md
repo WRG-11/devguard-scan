@@ -103,9 +103,12 @@ Outputs: `total-findings`, `error-count`, `status`, `files-scanned`,
 when `files-scanned` is `0`.
 
 `.github/workflows/self-scan.yml` in this repo runs the action against its
-own source as both a real CI gate and a working usage example. No version
-tags exist yet (see CHANGELOG) — pin to `@main` for now, or to a commit SHA
-if you want stability against future changes on this branch.
+own source as both a real CI gate and a working usage example.
+
+No version tags exist yet, so `@main` tracks a moving branch — pin to a commit
+SHA if you want stability. The next cut is staged as `v0.2.0` in the CHANGELOG,
+which also carries the exact release commands; once it lands, `@v0` becomes the
+ref to follow.
 
 ## What it detects (<!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules — ported verbatim)
 
@@ -231,6 +234,16 @@ scripts/     contract_check.mjs · contract_selftest.mjs · contract_digest.mjs
              ui_smoke.mjs · cli_smoke.mjs · exit_code_smoke.mjs
              eol_check.mjs · run_parity.ps1
 ```
+
+## Not on npm
+
+`package.json` is `private: true`, so `npx devguard-scan` does not work and is
+not meant to. The `bin` entry exists for `npm link` and for the Action, which
+invokes `bin/scan.mjs` by path. Publishing to npm would mean owning a package
+name and a release cadence for a proof-of-concept whose canonical
+implementation lives elsewhere; the Action and a `git clone` cover the same
+ground without that. If that changes it will be a deliberate decision with a
+tag behind it, not a side effect.
 
 ## Out of scope (MVP)
 
