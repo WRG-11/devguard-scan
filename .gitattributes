@@ -1,0 +1,29 @@
+# Normalise line endings in the index. Without this the repo's committed EOLs
+# depended on whichever machine and editor wrote each file: README.md and
+# scripts/run_parity.ps1 were stored with CRLF while every other text file was
+# stored with LF (`git ls-files --eol`). A later edit from a different tool
+# then rewrites every line of such a file, so a one-line change arrives as a
+# whole-file diff and the real change is invisible in review.
+#
+# tests/... has no equivalent here (this repo's tests are .mjs), so the
+# guard lives in scripts/eol_check.mjs and runs in CI.
+* text=auto eol=lf
+
+# Binary: never touch, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+
+# ...except this one, which is not an image. fixtures/screenshot.png is a plain
+# text file carrying a fake token, and it wears the .png extension precisely so
+# the corpus exercises the `**/*.png` exclude rule. Marking it `binary` would
+# freeze whatever bytes the working tree happened to hold -- on Windows that is
+# the CRLF-converted copy git produced back when it (correctly, for a text file)
+# treated it as text, i.e. 210 bytes where the committed blob has 207.
+fixtures/screenshot.png text eol=lf
+
+# PowerShell is the one place CRLF is conventional on the consuming side, but
+# pwsh 7 reads LF fine on every platform and mixed EOLs cost more than they buy.
+*.ps1 text eol=lf
