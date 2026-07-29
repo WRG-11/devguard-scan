@@ -307,15 +307,39 @@ export function matchAny(path, patterns) {
   return false;
 }
 
-// --- line_col — verbatim port of common.py:53-57 ---------------------------
-// NOTE: index is a 0-based offset into `text`. In JS that offset is in UTF-16
-// code units; Python counts code points. For ASCII content (all synthetic
-// fixtures + typical config/source) these are identical.
+// --- line_col — port of common.py line_col ---------------------------------
+// `index` is a 0-based offset into `text`, and the two languages do not agree
+// on what an offset counts: RegExp.exec gives UTF-16 code units, Python's
+// match.start() gives code points. Anything outside the BMP -- an emoji, a
+// musical symbol, most of the supplementary CJK block -- is two code units and
+// one code point, so a line carrying one before the match reported a column
+// two higher than the canonical tool for the same finding.
+//
+// This was previously documented as a known divergence and left alone on the
+// grounds that fixtures and typical config are ASCII. That is true of the
+// corpus and not of the input: a comment or a string above a leaked key is
+// exactly where non-ASCII shows up, and a column that is silently wrong sends
+// whoever is chasing the leak to the wrong character.
+//
+// The line number needs no such care: it counts newlines, and U+000A cannot
+// appear as half of a surrogate pair, so both units give the same answer.
 export function lineCol(text, index) {
   let line = 1;
   for (let i = 0; i < index; i++) if (text.charCodeAt(i) === 10) line++;
   const lineStart = text.lastIndexOf("\n", index - 1); // rfind("\n", 0, index)
-  const column = lineStart === -1 ? index + 1 : index - lineStart;
+  const from = lineStart === -1 ? 0 : lineStart + 1;
+  // Python: column = index + 1 (first line) or index - line_start, both of
+  // which are "code points since the start of the line, plus one".
+  let column = 1;
+  for (let i = from; i < index; i++) {
+    const code = text.charCodeAt(i);
+    const isTrailingSurrogate = code >= 0xdc00 && code <= 0xdfff;
+    if (isTrailingSurrogate && i > from) {
+      const prev = text.charCodeAt(i - 1);
+      if (prev >= 0xd800 && prev <= 0xdbff) continue; // second half of one code point
+    }
+    column++;
+  }
   return [line, column];
 }
 

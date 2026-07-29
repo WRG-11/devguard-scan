@@ -91,7 +91,7 @@ jobs:
         run: node scripts/glob_parity_check.mjs glob_corpus.json
 
   hygiene:
-    name: line endings
+    name: docs + line endings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -99,6 +99,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '20'
+
+      - name: README metric markers are current
+        # --check, not --write: on a pull request the refresh workflow has not
+        # run yet, and a README claiming counts nobody measured is the failure
+        # this stamper exists to remove.
+        run: node scripts/readme_stamp.mjs --check
 
       - name: Index EOLs are LF
         run: node scripts/eol_check.mjs

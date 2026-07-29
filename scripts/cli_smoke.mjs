@@ -4,10 +4,10 @@
 // (parity_compare.py) -- this proves the Node/filesystem entrypoint wires
 // the same engine correctly: known-corpus findings, include/exclude
 // override, allowlist suppression, and a clean-directory PASS/exit-code
-// path. The allowlist numbers below (11 -> 6 active, 5 suppressed) were
+// path. The allowlist numbers below (14 -> 9 active, 5 suppressed) were
 // re-measured against the canonical wrg_devguard.cli _apply_allowlist()
 // with the identical rule set on 2026-07-29 -- exact match, including
-// which 5 findings get suppressed and that the 6 survivors are all ERROR.
+// which 5 findings get suppressed and that the 9 survivors are all ERROR.
 //
 // Usage: node scripts/cli_smoke.mjs   (exit 0 = pass)
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 import { writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { runScan, loadAllowlist, parseArgs, assertScanRoot } from "../bin/scan.mjs";
+import { lineCol } from "../scan.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, "..", "fixtures");
@@ -23,14 +24,15 @@ const CLEAN_DIR = join(HERE, "..", "bin"); // no secrets in the CLI source itsel
 const checks = {};
 
 const full = runScan({ root: FIXTURES });
-checks["full fixtures scan finds 11"] = full.summary.total_findings === 11;
-checks["full fixtures scan: 7 error"] = full.summary.error === 7;
+checks["full fixtures scan finds 14"] = full.summary.total_findings === 14;
+checks["full fixtures scan: 10 error"] = full.summary.error === 10;
 checks["full fixtures scan: 4 warning"] = full.summary.warning === 4;
 checks["full fixtures scan status FAIL"] = full.status === "FAIL";
 
 // The two extensions the port was missing until 2026-07-29. Asserted by file
-// rather than only through the totals above, so a regression names itself
-// instead of surfacing as "expected 11, got 9".
+// rather than only through the totals above, so a regression names the
+// extension that stopped being scanned instead of surfacing as a total that
+// is off by some number.
 checks["**/*.env.* is scanned (app.env.local)"] = full.findings.some(
   (f) => f.file === "app.env.local" && f.rule_id === "aws_access_key_id",
 );
@@ -60,7 +62,7 @@ const excluded = runScan({
   exclude: ["**/cloud_tokens.txt", "**/.git/**", "**/node_modules/**"],
 });
 checks["--exclude override drops cloud_tokens.txt findings"] =
-  excluded.summary.total_findings === 7 && !excluded.findings.some((f) => f.file.includes("cloud_tokens"));
+  excluded.summary.total_findings === 10 && !excluded.findings.some((f) => f.file.includes("cloud_tokens"));
 
 const clean = runScan({ root: CLEAN_DIR });
 checks["clean directory finds 0"] = clean.summary.total_findings === 0;
@@ -76,9 +78,9 @@ const allowlisted = runScan({
     { file: "*.cfg", severity: "WARNING", reason: "reviewed, accepted risk" },
   ],
 });
-checks["allowlist suppresses 5 of 11 findings"] =
-  allowlisted.summary.total_findings === 6 && allowlisted.summary.suppressed === 5;
-checks["allowlist leaves only ERROR findings"] = allowlisted.summary.warning === 0 && allowlisted.summary.error === 6;
+checks["allowlist suppresses 5 of 14 findings"] =
+  allowlisted.summary.total_findings === 9 && allowlisted.summary.suppressed === 5;
+checks["allowlist leaves only ERROR findings"] = allowlisted.summary.warning === 0 && allowlisted.summary.error === 9;
 checks["allowlist: google_api_key fully suppressed"] = !allowlisted.findings.some((f) => f.rule_id === "google_api_key");
 
 const noAllowlist = runScan({ root: FIXTURES });
@@ -110,6 +112,29 @@ checks["no allowlist -> suppressed is 0 (backward compatible)"] = noAllowlist.su
     loadAllowlist(explicitPath, tmp, false).length === 1;
 
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// --- columns are counted in code points, like Python, not UTF-16 units.
+// The corpus fixture (unicode_columns.py) proves this against the canonical
+// engine, but only a maintainer with the private source can run that leg.
+// These assertions encode the same answers so CI catches a regression too:
+// each expected column is the code-point answer, and each differs from what
+// UTF-16 arithmetic would produce.
+{
+  // "🔐x": the emoji is 2 UTF-16 units and 1 code point, so 'x' sits at
+  // UTF-16 offset 2 and code-point offset 1 -> column 2, not 3.
+  checks["lineCol counts an astral char as one column"] = lineCol("\u{1F510}x", 2)[1] === 2;
+  checks["lineCol counts a BMP non-ASCII char as one column"] = lineCol("şx", 1)[1] === 2;
+  checks["lineCol is unchanged for ASCII"] = lineCol("abc", 2)[1] === 3;
+  // Line numbers were never affected -- U+000A cannot be half a surrogate --
+  // but assert it so a future rewrite of the loop cannot break them quietly.
+  checks["lineCol still counts lines across astral chars"] =
+    lineCol("\u{1F510}\n\u{1F510}\nx", 6)[0] === 3;
+
+  const uni = full.findings.filter((f) => f.file === "unicode_columns.py");
+  checks["unicode fixture yields 3 findings"] = uni.length === 3;
+  checks["astral prefix does not shift the reported column"] =
+    uni.every((f) => f.column === 20);
 }
 
 // --- argument handling: every one of these used to end in a clean exit 0 or a
@@ -146,7 +171,7 @@ checks["assertScanRoot: real directory passes"] = !rejects(() => assertScanRoot(
 // --- counts: the report must say how much was actually looked at.
 {
   const counted = runScan({ root: FIXTURES });
-  checks["report counts files scanned"] = counted.summary.files_scanned === 5;
+  checks["report counts files scanned"] = counted.summary.files_scanned === 6;
   checks["report counts oversize skips"] = counted.summary.skipped_oversize === 0;
 
   // --max-file-bytes small enough to exclude everything: findings drop to zero
@@ -155,7 +180,7 @@ checks["assertScanRoot: real directory passes"] = !rejects(() => assertScanRoot(
   const tiny = runScan({ root: FIXTURES, maxFileBytes: 1 });
   checks["--max-file-bytes suppresses findings"] = tiny.summary.total_findings === 0;
   checks["--max-file-bytes is visible in the report"] =
-    tiny.summary.files_scanned === 0 && tiny.summary.skipped_oversize === 5;
+    tiny.summary.files_scanned === 0 && tiny.summary.skipped_oversize === 6;
   checks["a tree where nothing was read is distinguishable from a clean one"] =
     tiny.summary.skipped_oversize !== clean.summary.skipped_oversize;
 

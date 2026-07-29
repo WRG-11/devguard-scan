@@ -117,9 +117,10 @@ if you want stability against future changes on this branch.
 | `github_fine_grained_pat`   | ERROR    | "                       |
 | `slack_webhook_url`         | ERROR    | "                       |
 
-Include/exclude follow `secrets.py` `DEFAULT_INCLUDE` + `policy.py`
-`DEFAULT_EXCLUDE` (e.g. `node_modules/`, `dist/`, `*.png`, `*.lock` are skipped;
-only `.env/.py/.js/.json/...` extensions are scanned). The file name you assign
+Include/exclude follow `secrets.py` `DEFAULT_INCLUDE` (<!-- METRIC:include_pattern_count -->15<!-- /METRIC:include_pattern_count -->
+patterns) + `policy.py` `DEFAULT_EXCLUDE` (<!-- METRIC:exclude_pattern_count -->31<!-- /METRIC:exclude_pattern_count -->
+patterns) — e.g. `node_modules/`, `dist/`, `*.png`, `*.lock` are skipped, and
+only `.env`/`.env.*`/`.cfg`/`.py`/`.js`/`.json`/... extensions are scanned. The file name you assign
 to pasted content drives those rules. The "Advanced: include/exclude patterns"
 section in the UI lets you override either list for a one-off scan (e.g. to
 force-include a file extension not in the default list) without touching the
@@ -147,8 +148,10 @@ The second one cannot see a divergence the corpus does not exercise, and on
 `**/*.cfg`, this port did not, `fixtures/` contained neither extension, and the
 harness reported ALL GREEN for eight days while the published demo, CLI and
 Action all skipped `.env.local` and `setup.cfg`. The contract check exists
-because of that, and `scripts/contract_selftest.mjs` runs ten deliberately
-broken contracts through it to prove it fails when it should.
+because of that, and `scripts/contract_selftest.mjs` runs
+<!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks --> cases through it — deliberately broken
+contracts that must each be caught, plus the real one, which must still pass so
+the self-test cannot be satisfied by a checker that rejects everything.
 
 ```powershell
 # everything, including the maintainer-only Python leg
@@ -174,7 +177,8 @@ The eight steps:
 6. **UI-path smoke** — the browser glue renders findings with `[REDACTED]` and
    never the raw value, a dropped directory's nested files are picked up, and
    an include-override reaches the scan.
-7. **CLI smoke** — `bin/scan.mjs` finds the same 11/11 corpus findings, honours
+7. **CLI smoke** — `bin/scan.mjs` finds the same
+   <!-- METRIC:corpus_finding_count -->14<!-- /METRIC:corpus_finding_count -->/<!-- METRIC:corpus_finding_count -->14<!-- /METRIC:corpus_finding_count --> corpus findings, honours
    `--exclude`/`--allowlist`/`--max-file-bytes`, and reports how many files it
    actually read.
 8. **Exit codes** — across the real process boundary: findings → 1, clean → 0,
@@ -184,9 +188,18 @@ The eight steps:
 > for OPSEC, so step 4 is checked against the detection *library* directly via
 > `scripts/py_reference_dump.py` — the same code the CLI calls.
 
-**Last run:** 11/11 findings byte-identical across the 10-rule corpus, summary
-counts identical (7 ERROR + 4 WARNING); UI smoke PASS (13/13); CLI smoke
-PASS (21/21, including allowlist parity).
+**Last run:** <!-- METRIC:corpus_finding_count -->14<!-- /METRIC:corpus_finding_count -->/<!-- METRIC:corpus_finding_count -->14<!-- /METRIC:corpus_finding_count -->
+findings byte-identical across the <!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count -->-rule corpus,
+summary counts identical (<!-- METRIC:corpus_error_count -->10<!-- /METRIC:corpus_error_count --> ERROR +
+<!-- METRIC:corpus_warning_count -->4<!-- /METRIC:corpus_warning_count --> WARNING); contract self-test
+<!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->/<!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->; UI smoke
+<!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->/<!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->; CLI smoke
+<!-- METRIC:cli_smoke_checks -->45<!-- /METRIC:cli_smoke_checks -->/<!-- METRIC:cli_smoke_checks -->45<!-- /METRIC:cli_smoke_checks -->; exit codes
+<!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->/<!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->.
+
+Every number in that line is stamped by `scripts/readme_stamp.mjs`, which
+measures them by running the suites; CI fails on drift. They were hand-written
+prose until 2026-07-29, and were wrong within an afternoon of edits.
 
 ## Fixtures
 
