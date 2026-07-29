@@ -126,31 +126,62 @@ force-include a file extension not in the default list) without touching the
 built-in defaults. A "Download report (.json)" button exports the last scan
 result in the same schema as `--json` on the CLI.
 
-## Parity & smoke harness
+## How this port is kept honest
+
+`scan.js` is a port, and a port drifts. This repo checks that two ways, and the
+distinction matters:
+
+**Contract check** (`scripts/contract_check.mjs`) compares the *lists* — rule
+ids, regex sources, severities, messages, `DEFAULT_INCLUDE`, `DEFAULT_EXCLUDE`,
+the size cap — against `parity/contract.json`, generated from the canonical
+Python source and copied here verbatim (with a sha256 over the document, so a
+contract edited by hand to match the code is rejected). It needs no Python and
+no access to the canonical source, so it runs in CI on every push.
+
+**Parity harness** compares the *findings* both engines produce over
+`fixtures/`. It needs the canonical source and therefore only runs locally, for
+a maintainer.
+
+The second one cannot see a divergence the corpus does not exercise, and on
+2026-07-21 it did not: the canonical include list gained `**/*.env.*` and
+`**/*.cfg`, this port did not, `fixtures/` contained neither extension, and the
+harness reported ALL GREEN for eight days while the published demo, CLI and
+Action all skipped `.env.local` and `setup.cfg`. The contract check exists
+because of that, and `scripts/contract_selftest.mjs` runs ten deliberately
+broken contracts through it to prove it fails when it should.
 
 ```powershell
-# from the repo root
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1
+# everything, including the maintainer-only Python leg
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1 `
+  -WrgDevguardSrc <monorepo-checkout>/apps/wrg_devguard/src
 ```
 
-The JS engine + UI smoke + CLI smoke run standalone via `run_parity.ps1`. The
-harness:
+```bash
+npm test    # everything that does not need the canonical source
+```
 
-1. Runs the **JS** engine (`scan.js`) over `fixtures/` via Node.
-2. Runs the **canonical Python** `wrg_devguard.secrets.scan_secrets()` over the
-   same `fixtures/`.
-3. Compares finding sets + severity counts (`rule_id`/`file`/`line`/`column`) —
-   exits non-zero on any divergence.
-4. Runs a headless UI-path smoke proving the browser glue renders findings with
-   `[REDACTED]` and never the raw value, that a dropped directory's nested
-   files are picked up, and that an include-override reaches the scan.
-5. Runs a CLI smoke (`bin/scan.mjs`) proving the filesystem entrypoint finds
-   the same 11/11 corpus findings, honors `--exclude`/`--allowlist` overrides
-   (allowlist numbers cross-checked against the real `_apply_allowlist()`),
-   and exits 0 on a clean directory.
+The eight steps:
+
+1. **Contract check** — this engine's rule + glob lists vs `parity/contract.json`.
+2. **Contract self-test** — ten mutated contracts, each of which must be caught.
+3. Runs the **JS** engine (`scan.js`) over `fixtures/` via Node.
+4. Runs the **canonical Python** `wrg_devguard.secrets.scan_secrets()` over the
+   same `fixtures/` and compares finding sets + severity counts
+   (`rule_id`/`file`/`line`/`column`). *Maintainer-only; skipped otherwise.*
+5. **Glob differential** — 2950 pattern/path pairs whose expected answers come
+   from CPython's own `fnmatch`/`pathlib`, replayed against `matchAny`, plus a
+   ReDoS probe. CPython stdlib only, so this runs in CI too.
+6. **UI-path smoke** — the browser glue renders findings with `[REDACTED]` and
+   never the raw value, a dropped directory's nested files are picked up, and
+   an include-override reaches the scan.
+7. **CLI smoke** — `bin/scan.mjs` finds the same 11/11 corpus findings, honours
+   `--exclude`/`--allowlist`/`--max-file-bytes`, and reports how many files it
+   actually read.
+8. **Exit codes** — across the real process boundary: findings → 1, clean → 0,
+   missing root / unknown flag / malformed value → 2.
 
 > The Python CLI's `--json-out` is fully redacted (counts only, no locations)
-> for OPSEC, so parity is checked against the detection *library* directly via
+> for OPSEC, so step 4 is checked against the detection *library* directly via
 > `scripts/py_reference_dump.py` — the same code the CLI calls.
 
 **Last run:** 11/11 findings byte-identical across the 10-rule corpus, summary
@@ -173,8 +204,12 @@ bin/scan.mjs filesystem CLI over the same engine (see "Use it in CI")
 action.yml   GitHub Action wrapper around bin/scan.mjs
 package.json type:module (zero runtime deps)
 fixtures/    synthetic parity corpus
-scripts/     js_reference_dump.mjs · py_reference_dump.py · parity_compare.py
-             ui_smoke.mjs · cli_smoke.mjs · run_parity.ps1
+parity/      contract.json — the canonical rule/glob lists, generated upstream
+scripts/     contract_check.mjs · contract_selftest.mjs · contract_digest.mjs
+             js_reference_dump.mjs · py_reference_dump.py · parity_compare.py
+             glob_corpus.py · glob_parity_check.mjs
+             ui_smoke.mjs · cli_smoke.mjs · exit_code_smoke.mjs
+             eol_check.mjs · run_parity.ps1
 ```
 
 ## Out of scope (MVP)

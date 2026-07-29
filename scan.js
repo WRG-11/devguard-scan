@@ -60,8 +60,14 @@ export const SECRET_RULES = [
   },
   {
     // Python: (?i)(api[_-]?key|...)...  → strip (?i), add "i" flag.
+    // The rest of the source is kept BYTE-IDENTICAL to the Python original,
+    // including the `\"` escapes inside the character classes, which JS does
+    // not require but does accept with the same meaning. That makes the whole
+    // port checkable by string comparison against parity/contract.json with
+    // exactly one documented transform (the inline (?i)) instead of a
+    // human deciding, per rule, whether two spellings are equivalent.
     id: "generic_secret_assignment",
-    source: String.raw`(api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*['"][^'"]{8,}['"]`,
+    source: String.raw`(api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*['\"][^'\"]{8,}['\"]`,
     flags: "gim",
     severity: "WARNING",
     message: "Potential hardcoded secret assignment.",
