@@ -52,6 +52,29 @@ node bin/scan.mjs . --json                # full JSON report (same schema as the
 node bin/scan.mjs . --exclude "**/dist/**,**/*.lock"   # override the built-in exclude list
 node bin/scan.mjs . --allowlist .wrg/allowlist.json    # suppress known-accepted findings
 node bin/scan.mjs . --max-file-bytes 262144            # lower the 1 MiB per-file cap
+node bin/scan.mjs . --sarif-output findings.sarif      # SARIF 2.1.0, for code scanning
+```
+
+### SARIF output
+
+`--sarif-output <path>` writes a SARIF 2.1.0 document alongside the normal
+report, so a scan can feed GitHub code scanning or any SARIF viewer. The
+GitHub Action exposes the same thing as an optional `sarif-output` input;
+leaving it empty changes nothing about the previous behaviour.
+
+The findings in the SARIF document are the **same redacted findings** the text
+report carries. Exporting to a machine-readable format does not widen what
+leaves the scanner -- a secret that is masked in the summary is masked in the
+SARIF too.
+
+```yaml
+- uses: WRG-11/devguard-scan@main
+  with:
+    path: .
+    sarif-output: devguard.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: devguard.sarif
 ```
 
 | exit | meaning |
@@ -202,7 +225,7 @@ summary counts identical (<!-- METRIC:corpus_error_count -->10<!-- /METRIC:corpu
 <!-- METRIC:corpus_warning_count -->4<!-- /METRIC:corpus_warning_count --> WARNING); contract self-test
 <!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->/<!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->; UI smoke
 <!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->/<!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->; CLI smoke
-<!-- METRIC:cli_smoke_checks -->45<!-- /METRIC:cli_smoke_checks -->/<!-- METRIC:cli_smoke_checks -->45<!-- /METRIC:cli_smoke_checks -->; exit codes
+<!-- METRIC:cli_smoke_checks -->47<!-- /METRIC:cli_smoke_checks -->/<!-- METRIC:cli_smoke_checks -->47<!-- /METRIC:cli_smoke_checks -->; exit codes
 <!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->/<!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->.
 
 Every number in that line is stamped by `scripts/readme_stamp.mjs`, which

@@ -16,6 +16,16 @@ Staged as `0.2.0`. Two rounds of work: the `0.1.0` follow-ups (allowlist, CLI,
 Action, UI fixes), and then a parity/measurement round that found the port had
 silently stopped scanning `.env.local` and `.cfg` files.
 
+### Added
+
+- **SARIF 2.1.0 export (`--sarif-output <path>`).** The CLI and the Action can
+  now write findings as SARIF, so a scan can feed GitHub code scanning or any
+  SARIF-consuming viewer instead of only stdout. The Action exposes it as the
+  optional `sarif-output` input; leaving it empty keeps the previous behaviour
+  exactly. **Redaction is unchanged**: the SARIF document carries the same
+  redacted findings the text report does -- exporting to a machine format does
+  not widen what leaves the scanner.
+
 ### Fixed -- detection
 
 - **`DEFAULT_INCLUDE` parity: `**/*.env.*` and `**/*.cfg` were missing.** The
