@@ -37,6 +37,10 @@ inputs:
       raising or lowering this never silently changes what was examined.
     required: false
     default: ''
+  sarif-output:
+    description: 'Optional SARIF 2.1.0 output path, relative to the calling workflow checkout'
+    required: false
+    default: ''
 
 outputs:
   total-findings:
@@ -75,6 +79,7 @@ runs:
         SCAN_EXCLUDE: ${{ inputs.exclude }}
         SCAN_ALLOWLIST: ${{ inputs.allowlist }}
         SCAN_MAX_FILE_BYTES: ${{ inputs.max-file-bytes }}
+        SCAN_SARIF_OUTPUT: ${{ inputs.sarif-output }}
       run: |
         set +e
         # --no-auto-allowlist unconditionally: as a gate this scans code it may
@@ -86,6 +91,7 @@ runs:
         [ -n "$SCAN_EXCLUDE" ] && ARGS+=("--exclude" "$SCAN_EXCLUDE")
         [ -n "$SCAN_ALLOWLIST" ] && ARGS+=("--allowlist" "$SCAN_ALLOWLIST")
         [ -n "$SCAN_MAX_FILE_BYTES" ] && ARGS+=("--max-file-bytes" "$SCAN_MAX_FILE_BYTES")
+        [ -n "$SCAN_SARIF_OUTPUT" ] && ARGS+=("--sarif-output" "$SCAN_SARIF_OUTPUT")
         node "${{ github.action_path }}/bin/scan.mjs" "${ARGS[@]}" > devguard-scan-report.json
         SCAN_EXIT=$?
         set -e

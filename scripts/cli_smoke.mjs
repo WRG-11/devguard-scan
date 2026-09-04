@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { runScan, loadAllowlist, parseArgs, assertScanRoot } from "../bin/scan.mjs";
-import { lineCol } from "../scan.js";
+import { lineCol, reportToSarif } from "../scan.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, "..", "fixtures");
@@ -28,6 +28,11 @@ checks["full fixtures scan finds 14"] = full.summary.total_findings === 14;
 checks["full fixtures scan: 10 error"] = full.summary.error === 10;
 checks["full fixtures scan: 4 warning"] = full.summary.warning === 4;
 checks["full fixtures scan status FAIL"] = full.status === "FAIL";
+const fullSarif = reportToSarif(full);
+checks["SARIF preserves findings and redacts snippets"] =
+  fullSarif.version === "2.1.0" &&
+  fullSarif.runs[0].results.length === full.findings.length &&
+  fullSarif.runs[0].results.every((r) => r.properties.redacted === true && !r.message.text.includes("AKIA"));
 
 // The two extensions the port was missing until 2026-07-29. Asserted by file
 // rather than only through the totals above, so a regression names the
@@ -161,9 +166,10 @@ checks["parseArgs: empty pattern list is rejected"] = rejects(() => parseArgs(["
 {
   const parsed = parseArgs(["fixtures", "--json", "--max-file-bytes", "4096", "--exclude", "a,b"]);
   checks["parseArgs: valid arguments still parse"] =
-    parsed.root === "fixtures" && parsed.json === true && parsed.maxFileBytes === 4096 && parsed.exclude.length === 2;
+  parsed.root === "fixtures" && parsed.json === true && parsed.maxFileBytes === 4096 && parsed.exclude.length === 2;
   checks["parseArgs: default root is ."] = parseArgs([]).root === ".";
 }
+checks["parseArgs: SARIF output path"] = parseArgs([".", "--sarif-output", "out.sarif"]).sarifOutput === "out.sarif";
 checks["assertScanRoot: missing directory is rejected"] = rejects(() => assertScanRoot(join(HERE, "no-such-dir")));
 checks["assertScanRoot: a file is not a directory"] = rejects(() => assertScanRoot(join(HERE, "cli_smoke.mjs")));
 checks["assertScanRoot: real directory passes"] = !rejects(() => assertScanRoot(FIXTURES));

@@ -202,7 +202,7 @@ summary counts identical (<!-- METRIC:corpus_error_count -->10<!-- /METRIC:corpu
 <!-- METRIC:corpus_warning_count -->4<!-- /METRIC:corpus_warning_count --> WARNING); contract self-test
 <!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->/<!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->; UI smoke
 <!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->/<!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->; CLI smoke
-<!-- METRIC:cli_smoke_checks -->45<!-- /METRIC:cli_smoke_checks -->/<!-- METRIC:cli_smoke_checks -->45<!-- /METRIC:cli_smoke_checks -->; exit codes
+<!-- METRIC:cli_smoke_checks -->47<!-- /METRIC:cli_smoke_checks -->/<!-- METRIC:cli_smoke_checks -->47<!-- /METRIC:cli_smoke_checks -->; exit codes
 <!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->/<!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->.
 
 Every number in that line is stamped by `scripts/readme_stamp.mjs`, which

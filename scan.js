@@ -505,3 +505,49 @@ export function buildReport(findings, scanRoot = ".", suppressedCount = 0, stats
     findings,
   };
 }
+
+// Export the same active findings for CI consumers. Secret snippets remain
+// redacted, and suppressed findings are intentionally absent from the report.
+export function reportToSarif(report) {
+  const rules = new Map();
+  const results = report.findings.map((finding) => {
+    const ruleId = `WRG-${finding.rule_id}`;
+    rules.set(ruleId, {
+      id: ruleId,
+      name: finding.rule_id,
+      shortDescription: { text: finding.message },
+    });
+    return {
+      ruleId,
+      level: finding.severity.toUpperCase() === "ERROR" ? "error" : "warning",
+      message: { text: `${finding.message} [REDACTED]` },
+      locations: [{ physicalLocation: {
+        artifactLocation: { uri: finding.file },
+        region: { startLine: finding.line, startColumn: finding.column },
+      } }],
+      properties: {
+        source_schema: report.schema_version,
+        check: finding.check,
+        severity: finding.severity,
+        redacted: true,
+      },
+    };
+  });
+  return {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [{
+      tool: { driver: {
+        name: "WRG DevGuard Scan",
+        version: "0.2.0",
+        rules: [...rules.values()],
+      } },
+      results,
+      properties: {
+        source_schema: report.schema_version,
+        status: report.status,
+        files_scanned: report.summary.files_scanned,
+      },
+    }],
+  };
+}

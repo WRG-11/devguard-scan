@@ -17,6 +17,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  writeFileSync,
 } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +25,7 @@ import { statSync } from "node:fs";
 import {
   scanFilesDetailed,
   buildReport,
+  reportToSarif,
   applyAllowlist,
   DEFAULT_INCLUDE,
   DEFAULT_EXCLUDE,
@@ -63,6 +65,7 @@ Usage: node bin/scan.mjs [dir] [options]
                         tree cannot supply its own suppression rules.
   --max-file-bytes n   skip files larger than n bytes (default ${MAX_FILE_BYTES})
   --json               print the full JSON report instead of a text summary
+  --sarif-output path  write a SARIF 2.1.0 report (findings stay redacted)
   -h, --help           show this help
 
 Exit codes: 0 clean, 1 ERROR-severity finding(s) present, 2 the scan could not
@@ -71,7 +74,7 @@ Same rules, same include/exclude, same line/column as the browser UI and
 the canonical wrg_devguard Python engine (see SECURITY.md).`);
 }
 
-const VALUE_FLAGS = new Set(["--include", "--exclude", "--allowlist", "--max-file-bytes"]);
+const VALUE_FLAGS = new Set(["--include", "--exclude", "--allowlist", "--max-file-bytes", "--sarif-output"]);
 
 export function parseArgs(argv) {
   const opts = {
@@ -82,6 +85,7 @@ export function parseArgs(argv) {
     autoAllowlist: true,
     maxFileBytes: MAX_FILE_BYTES,
     json: false,
+    sarifOutput: null,
     help: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -99,6 +103,7 @@ export function parseArgs(argv) {
       if (a === "--include") opts.include = splitPatterns(a, value);
       else if (a === "--exclude") opts.exclude = splitPatterns(a, value);
       else if (a === "--allowlist") opts.allowlist = value;
+      else if (a === "--sarif-output") opts.sarifOutput = value;
       else opts.maxFileBytes = parsePositiveInt(a, value);
       continue;
     }
@@ -298,6 +303,10 @@ function main() {
       console.log(`  ${f.severity.padEnd(7)} ${f.file}:${f.line}:${f.column}  ${f.rule_id}  ${f.message}`);
     }
     console.log(report.status === "FAIL" ? "\nFAIL" : "\nPASS");
+  }
+
+  if (opts.sarifOutput) {
+    writeFileSync(opts.sarifOutput, JSON.stringify(reportToSarif(report), null, 2) + "\n", "utf-8");
   }
 
   process.exit(report.status === "FAIL" ? EXIT_FINDINGS : EXIT_PASS);
