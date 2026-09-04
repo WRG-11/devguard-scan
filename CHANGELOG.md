@@ -3,18 +3,23 @@
 All notable changes to `devguard-scan` (devguard-in-browser) are documented
 here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-> **Versioning note:** the in-tree version is `0.2.0` (`package.json`). There
-> are still no Git tags or GitHub releases: the `[0.1.0]` entry below was
-> seeded from repository history, and `[Unreleased]` is staged to be cut as
-> `v0.2.0`. Until a tag exists, `uses: WRG-11/devguard-scan@main` tracks a
-> moving branch -- pin to a commit SHA if you need stability. Cutting the tag
-> is a maintainer action; see "Releasing" at the end of this file.
+> **Versioning note:** the in-tree version is `0.3.0` (`package.json`).
+> Releases are cut as Git tags: `v0.2.0` (2026-07-29) is the latest
+> published one, and `v0` is a moving major alias that points at it.
+> `uses: WRG-11/devguard-scan@v0.2.0` pins an exact release;
+> `@main` tracks a moving branch. Cutting a tag is a maintainer action;
+> see "Releasing" at the end of this file.
+>
+> This note previously said no tags or releases existed. They had existed
+> since 2026-07-29 -- the tag was cut and the note was not updated, so a
+> reader (and a later contributor) was told the opposite of the truth for
+> five weeks, and an entry meant for 0.3.0 was filed under `[Unreleased]`
+> because of it.
 
-## [Unreleased]
+## [0.3.0] - 2026-09-05
 
-Staged as `0.2.0`. Two rounds of work: the `0.1.0` follow-ups (allowlist, CLI,
-Action, UI fixes), and then a parity/measurement round that found the port had
-silently stopped scanning `.env.local` and `.cfg` files.
+SARIF export, so a scan can feed a code-scanning pipeline instead of only
+a terminal.
 
 ### Added
 
@@ -25,6 +30,13 @@ silently stopped scanning `.env.local` and `.cfg` files.
   exactly. **Redaction is unchanged**: the SARIF document carries the same
   redacted findings the text report does -- exporting to a machine format does
   not widen what leaves the scanner.
+
+## [0.2.0] - 2026-07-29
+
+
+Staged as `0.2.0`. Two rounds of work: the `0.1.0` follow-ups (allowlist, CLI,
+Action, UI fixes), and then a parity/measurement round that found the port had
+silently stopped scanning `.env.local` and `.cfg` files.
 
 ### Fixed -- detection
 

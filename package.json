@@ -1,6 +1,6 @@
 {
   "name": "devguard-scan",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "devguard-in-browser — 100% client-side secret-scan POC (zero deps, zero upload)",
