@@ -1,3 +1,11 @@
 __pycache__/
 *.pyc
 glob_corpus.json
+
+# Scan output. README documents `--sarif-output findings.sarif` as the usage
+# example, so anyone following it produces a SARIF file in the repo root -- a
+# run artefact, not a deliverable. No tracked file has this extension, and
+# leaving the pattern out is one `git add -A` away from publishing a scan of
+# whatever the reader happened to point it at. `--json` writes to stdout, so
+# it has no default filename to ignore.
+*.sarif
