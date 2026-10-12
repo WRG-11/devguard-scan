@@ -212,7 +212,7 @@ the self-test cannot be satisfied by a checker that rejects everything.
 ```powershell
 # everything, including the maintainer-only Python leg
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_parity.ps1 `
-  -WrgDevguardSrc <monorepo-checkout>/apps/wrg_devguard/src
+  -WrgDevguardSrc <wrg_devguard-checkout>/src
 ```
 
 ```bash

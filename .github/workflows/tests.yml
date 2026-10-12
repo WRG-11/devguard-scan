@@ -86,7 +86,7 @@ jobs:
       - name: Generate the oracle corpus
         # glob_corpus.json is generated, not committed (.gitignore), so this
         # differential check could not run anywhere but a developer's machine.
-        # The generator is CPython stdlib only -- no monorepo access needed,
+        # The generator is CPython stdlib only -- no private source access needed,
         # because Python's own fnmatch/pathlib IS the contract being ported.
         run: python scripts/glob_corpus.py glob_corpus.json
 

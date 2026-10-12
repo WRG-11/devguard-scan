@@ -1,14 +1,14 @@
 // devguard-in-browser — secret-scan engine (JS port of wrg_devguard).
 //
-// PARITY SOURCE (READ-ONLY): wrg_devguard (private monorepo, not a
+// PARITY SOURCE (READ-ONLY): wrg_devguard (private repository, not a
 // standalone public repo -- see SECURITY.md scope note), src/wrg_devguard/
 //   secrets.py  SECRET_RULES (L9-70), DEFAULT_INCLUDE (L72-86), scan_secrets (L89-134)
 //   common.py   match_any (L42-52), line_col (L74-78)
 //   policy.py   DEFAULT_EXCLUDE (L20-52)
 //
-// Verified byte-identical against the current monorepo source (2026-07-17):
+// Verified byte-identical against the current canonical source (2026-07-17):
 // 9/9 findings + summary counts matched via
-// `run_parity.ps1 -WrgDevguardSrc <monorepo>/wrg_devguard/src`.
+// `run_parity.ps1 -WrgDevguardSrc <wrg_devguard-checkout>/src`.
 //
 // This module is dependency-free ES and runs UNCHANGED in the browser (UI) and
 // in Node (parity harness). It performs NO I/O and NO network calls — callers

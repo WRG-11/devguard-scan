@@ -7,14 +7,14 @@ finding-level parity. This helper calls the canonical detection library
 directly (the SAME code the CLI uses) and emits the envelope the JS engine
 produces, so browser-engine vs Python-tool can be diffed finding-for-finding.
 
-The canonical source is maintainer-only: it lives in a private monorepo and is
+The canonical source is maintainer-only: it lives in a private repository and is
 not published as a standalone repo, so this script only runs for someone with
 that checkout. (An earlier version of this line pointed at a public
 "WRG-11/wrg-devguard" repository that does not exist -- the docs redaction pass
 that removed that name elsewhere missed this file.)
 
 Usage:
-  PYTHONPATH=<monorepo-checkout>/apps/wrg_devguard/src       python py_reference_dump.py <root> <out.json>
+  PYTHONPATH=<wrg_devguard-checkout>/src python py_reference_dump.py <root> <out.json>
 """
 from __future__ import annotations
 

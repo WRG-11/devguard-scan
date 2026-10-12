@@ -55,5 +55,5 @@ divergence from the canonical contract in `parity/contract.json`.
 
 The rule patterns are ported verbatim from a canonical `wrg_devguard` Python
 detection engine that is not published as a standalone public repo (it is part
-of a private monorepo) — report findings against the patterns as they appear in
+of a private repository). Report findings against the patterns as they appear in
 this repo's own `scan.js` and `parity/contract.json`.
