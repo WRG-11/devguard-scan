@@ -1,14 +1,39 @@
-# devguard-in-browser
+# devguard-scan
 
-A **100% client-side** secret scanner. Paste code or drop files; it flags leaked
-API keys, tokens, and private-key blocks **without a single byte leaving your
-browser**. It is a static, dependency-free port of the `wrg_devguard`
-`scan-secrets` engine — the same <!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules, the same include/exclude logic, the
-same line/column reporting.
+A secret scanner that runs in your browser, and in CI from the same `scan.js`. Paste code
+or drop files and it reports leaked API keys, tokens and private-key blocks by rule and
+position, with the value redacted.
 
-## Status
+Try it in the browser: <https://wrg-11.github.io/devguard-scan/>
 
-Proof-of-concept — a "try-it-now" capability demo of the engine, not a product.
+Or run it on the bundled synthetic fixtures (Node.js, nothing to install):
+
+```bash
+git clone https://github.com/WRG-11/devguard-scan && cd devguard-scan
+node bin/scan.mjs fixtures
+```
+
+```
+devguard-scan: 14 finding(s) (10 error, 4 warning) in fixtures
+  6 file(s) scanned
+  ERROR   app.env.local:12:19  aws_access_key_id  Possible AWS Access Key ID found.
+  ERROR   cloud_tokens.txt:6:13  google_api_key  Possible Google API key found.
+  WARNING config.py:2:1  generic_secret_assignment  Potential hardcoded secret assignment.
+  (11 more lines)
+
+FAIL
+```
+
+Exit code `1` means at least one ERROR-severity finding, `0` means none, and `2` means the
+scan did not run (for example a scan root that does not exist), so a typo in a CI path
+fails instead of passing.
+
+Nothing is uploaded. The page ships a `Content-Security-Policy` with `connect-src 'none'`,
+so the browser itself refuses `fetch`, `XMLHttpRequest` and `WebSocket` connections;
+`scripts/csp_check.mjs` checks this in CI.
+
+Status: proof of concept. <!-- METRIC:secret_rule_count -->10<!-- /METRIC:secret_rule_count --> rules, ported from the `wrg_devguard` `scan-secrets` engine.
+No dependencies. Not on npm. [Use it in CI](#use-it-in-ci) · [How the port is checked](#how-this-port-is-kept-honest)
 
 ## Why it's interesting
 
@@ -225,7 +250,7 @@ summary counts identical (<!-- METRIC:corpus_error_count -->10<!-- /METRIC:corpu
 <!-- METRIC:corpus_warning_count -->4<!-- /METRIC:corpus_warning_count --> WARNING); contract self-test
 <!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->/<!-- METRIC:contract_selftest_checks -->11<!-- /METRIC:contract_selftest_checks -->; UI smoke
 <!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->/<!-- METRIC:ui_smoke_checks -->13<!-- /METRIC:ui_smoke_checks -->; CLI smoke
-<!-- METRIC:cli_smoke_checks -->47<!-- /METRIC:cli_smoke_checks -->/<!-- METRIC:cli_smoke_checks -->47<!-- /METRIC:cli_smoke_checks -->; exit codes
+<!-- METRIC:cli_smoke_checks -->50<!-- /METRIC:cli_smoke_checks -->/<!-- METRIC:cli_smoke_checks -->50<!-- /METRIC:cli_smoke_checks -->; exit codes
 <!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->/<!-- METRIC:exit_code_checks -->10<!-- /METRIC:exit_code_checks -->.
 
 Every number in that line is stamped by `scripts/readme_stamp.mjs`, which
@@ -268,17 +293,10 @@ implementation lives elsewhere; the Action and a `git clone` cover the same
 ground without that. If that changes it will be a deliberate decision with a
 tag behind it, not a side effect.
 
-## Out of scope (MVP)
+## Out of scope
 
 git/repo clone · policy-lint / ai_check / threat checks · accounts / backend /
 network · Pyodide · publishing/hosting. Single page, single job: secret-scan.
-
-## Phase 2 (not this POC)
-
-If it gets traction: a Pyodide-based pattern that runs `secrets.py` (and other
-zero-dep WRG tools) unmodified in-browser. The public GitHub Pages host is
-already live (<https://wrg-11.github.io/devguard-scan/>); the Pyodide pattern
-stays parked until the live demo proves demand.
 
 ## License
 

@@ -12,7 +12,8 @@
 // Usage: node scripts/cli_smoke.mjs   (exit 0 = pass)
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { runScan, loadAllowlist, parseArgs, assertScanRoot } from "../bin/scan.mjs";
 import { lineCol, reportToSarif } from "../scan.js";
@@ -199,6 +200,32 @@ checks["assertScanRoot: real directory passes"] = !rejects(() => assertScanRoot(
   const mixed = runScan({ root: tmp, maxFileBytes: 1024 });
   checks["excluded oversize files are not counted as size skips"] = mixed.summary.skipped_oversize === 1;
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// The README opens with a few lines of this CLI's output on the fixtures. A
+// sample inside a code block cannot carry a METRIC marker, so it is held here:
+// every quoted line must be a line the CLI prints today, and the "(N more
+// lines)" note must account for exactly the finding lines left out.
+{
+  const repoRoot = join(HERE, "..");
+  const run = spawnSync(process.execPath, [join("bin", "scan.mjs"), "fixtures"], {
+    cwd: repoRoot,
+    encoding: "utf-8",
+  });
+  const printed = run.stdout.split(/\r?\n/);
+  const readme = readFileSync(join(repoRoot, "README.md"), "utf-8").split(/\r?\n/);
+  const start = readme.findIndex((l) => l.startsWith("devguard-scan: "));
+  const end = start < 0 ? -1 : readme.indexOf("```", start);
+  const sample = start < 0 || end < 0 ? [] : readme.slice(start, end).filter((l) => l.trim() !== "");
+  const more = sample.map((l) => /^\s*\((\d+) more lines\)$/.exec(l)).find(Boolean);
+  const quoted = sample.filter((l) => !/more lines\)$/.test(l));
+  const isFinding = (l) => /^\s+(ERROR|WARNING)\s/.test(l);
+  checks["README sample shows at least two findings"] = quoted.filter(isFinding).length >= 2;
+  checks["README sample: every quoted line is printed by the CLI today"] =
+    quoted.length > 0 && quoted.every((l) => printed.includes(l));
+  checks["README sample: '(N more lines)' counts the finding lines left out"] =
+    Boolean(more) &&
+    Number(more[1]) === printed.filter(isFinding).length - quoted.filter(isFinding).length;
 }
 
 let ok = true;

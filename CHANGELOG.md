@@ -16,6 +16,24 @@ here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 > five weeks, and an entry meant for 0.3.0 was filed under `[Unreleased]`
 > because of it.
 
+## [Unreleased]
+
+Documentation only; `scan.js`, the CLI and the Action are unchanged.
+
+### Changed
+
+- The README opens with what the scanner is, the browser link, the command
+  that runs it on the bundled fixtures and a sample of what that prints. The
+  title is now the repository name, `devguard-scan`.
+- The README no longer carries the "Phase 2" section; plans are not part of
+  this repository. "Out of scope (MVP)" is now "Out of scope".
+
+### Added
+
+- Three checks in `scripts/cli_smoke.mjs` hold the README's output sample
+  against what the CLI prints on the fixtures, including the count in its
+  "(N more lines)" note.
+
 ## [0.3.0] - 2026-09-05
 
 SARIF export, so a scan can feed a code-scanning pipeline instead of only
