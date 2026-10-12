@@ -6,15 +6,15 @@
 # Everything except step 4 also runs in GitHub Actions
 # (.github/workflows/tests.yml). Step 4 -- the finding-for-finding comparison
 # against the canonical Python engine -- needs the wrg_devguard source, which
-# lives in a private monorepo (maintainer-only), not a standalone public repo.
-# Pass -WrgDevguardSrc <monorepo-checkout>/apps/wrg_devguard/src (or set
+# lives in a private repository (maintainer-only), not a standalone public repo.
+# Pass -WrgDevguardSrc <wrg_devguard-checkout>/src (or set
 # $env:WRG_DEVGUARD_SRC) to include it; it is skipped with a notice otherwise.
 #
 # Step 4 is NOT the check that catches a drifted port. It compares what the two
 # engines find in fixtures/, so it only sees a divergence the corpus exercises
 # -- it printed ALL GREEN for eight days while this engine had stopped scanning
 # .env.local and setup.cfg. Step 1 compares the rule and glob lists themselves,
-# and needs no monorepo access at all.
+# and needs no private source access at all.
 [CmdletBinding()]
 param(
     [string]$WrgDevguardSrc = $env:WRG_DEVGUARD_SRC
@@ -51,7 +51,7 @@ Invoke-Step '[3/8] JS engine dump' {
 
 if (-not $WrgDevguardSrc -or -not (Test-Path $WrgDevguardSrc)) {
     Write-Host '== [4/8] Python parity SKIPPED ==' -ForegroundColor Yellow
-    Write-Host '  Provide -WrgDevguardSrc <monorepo-checkout>/apps/wrg_devguard/src to run it' -ForegroundColor Yellow
+    Write-Host '  Provide -WrgDevguardSrc <wrg_devguard-checkout>/src to run it' -ForegroundColor Yellow
     Write-Host '  (maintainer-only: the canonical source is private, not a standalone repo).' -ForegroundColor Yellow
     Write-Host '  Step 1 already compared the contracts and needs no such access.' -ForegroundColor Yellow
 } else {
@@ -65,7 +65,7 @@ if (-not $WrgDevguardSrc -or -not (Test-Path $WrgDevguardSrc)) {
 }
 
 # CPython stdlib only -- fnmatch/pathlib ARE the contract the JS matcher ports,
-# so this needs no monorepo access either.
+# so this needs no private source access either.
 Invoke-Step '[5/8] Glob oracle corpus (CPython fnmatch)' {
     py -3 (Join-Path $here 'scripts/glob_corpus.py') $globCorpus
 }

@@ -16,6 +16,30 @@ here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 > five weeks, and an entry meant for 0.3.0 was filed under `[Unreleased]`
 > because of it.
 
+## [Unreleased]
+
+Documentation, comments and usage text only; `scan.js`, the CLI and the
+Action behave exactly as before.
+
+### Changed
+
+- The README opens with what the scanner is, the browser link, the command
+  that runs it on the bundled fixtures and a sample of what that prints. The
+  title is now the repository name, `devguard-scan`.
+- The README no longer carries the "Phase 2" section; plans are not part of
+  this repository. "Out of scope (MVP)" is now "Out of scope".
+- Comments and usage text describe the canonical Python source as a private
+  repository, and the maintainer-only parity leg takes a neutral placeholder
+  path (`<wrg_devguard-checkout>/src`). Touches `README.md`, `SECURITY.md`,
+  `scan.js` (header comment), `scripts/run_parity.ps1`,
+  `scripts/py_reference_dump.py` and the CI workflow comment.
+
+### Added
+
+- Three checks in `scripts/cli_smoke.mjs` hold the README's output sample
+  against what the CLI prints on the fixtures, including the count in its
+  "(N more lines)" note.
+
 ## [0.3.0] - 2026-09-05
 
 SARIF export, so a scan can feed a code-scanning pipeline instead of only
@@ -186,12 +210,12 @@ silently stopped scanning `.env.local` and `.cfg` files.
 - `SECURITY.md` + `scan.js` + `scripts/run_parity.ps1`: corrected a dead
   link/instruction pointing at `WRG-11/wrg-devguard` -- that repo was never
   published standalone (confirmed 404); the canonical `wrg_devguard` source
-  lives in a private monorepo. Docs now say so honestly
+  lives in a private repository. Docs now say so honestly
   instead of pointing contributors at a nonexistent clone target.
   `scan.js`'s source-line citations for `common.py`'s `match_any`/`line_col`
   were also stale (L34-44/L53-57 claimed, actual L42-52/L74-78) -- corrected
   after re-verifying byte-identical parity (9/9 findings) against the
-  current monorepo source.
+  current canonical source.
 - README.md: the WRG-11 ecosystem link for `wrg-sigma-rules` hardcoded
   "68 sigma detection rules" -- that repo has since grown to 73+. Dropped
   the hardcoded count (cross-repo counts can't be self-stamped the way
