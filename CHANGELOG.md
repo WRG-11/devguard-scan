@@ -33,6 +33,8 @@ Action behave exactly as before.
   path (`<wrg_devguard-checkout>/src`). Touches `README.md`, `SECURITY.md`,
   `scan.js` (header comment), `scripts/run_parity.ps1`,
   `scripts/py_reference_dump.py` and the CI workflow comment.
+- `SECURITY.md` names one reporting channel, GitHub private vulnerability
+  reporting. The e-mail alternative is removed.
 
 ### Added
 

@@ -16,8 +16,7 @@ report it responsibly.
 **Do not open a public issue.**
 
 Instead, please use GitHub's
-[private vulnerability reporting](https://github.com/WRG-11/devguard-scan/security/advisories/new)
-or email **detectionfrontier@proton.me**.
+[private vulnerability reporting](https://github.com/WRG-11/devguard-scan/security/advisories/new).
 
 ### What to include
 
